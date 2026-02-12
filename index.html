@@ -185,7 +185,7 @@
         `).join('');
     }
 
-    function renderGrid(data) {
+   function renderGrid(data) {
         const grid = document.getElementById('cardGrid');
         const countEl = document.getElementById('showingCount');
         const noRes = document.getElementById('noResults');
@@ -207,7 +207,7 @@
             const dotColor = item.qty > 100 ? 'bg-emerald-500' : (item.qty > 0 ? 'bg-amber-400' : 'bg-rose-500');
             const subtext = `${item.surface} • ${item.body} • ${item.sample} • ${item.weight}kg`;
             
-            // Format Size neatly (e.g., 1200x600)
+            // Format Size neatly
             const cleanSize = `${item.size.split('X')[0]}x${item.size.split('X')[1]}`;
 
             el.innerHTML = `
@@ -225,11 +225,16 @@
 
                     <div class="flex-1 flex flex-col items-center justify-center p-2 text-center">
                         
-                        <div class="flex items-center justify-center gap-2 mb-1 w-full flex-wrap">
-                            <span class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600 shadow-sm whitespace-nowrap">
+                        <div class="flex items-center justify-center gap-1.5 mb-0.5 w-full flex-wrap px-1">
+                            <span class="text-[13px] font-bold text-slate-500 whitespace-nowrap">
                                 ${cleanSize}
                             </span>
-                            <h3 class="text-[13px] font-bold text-slate-800 leading-tight truncate max-w-full">${item.design}</h3>
+                            
+                            <span class="text-[12px] text-slate-300">|</span>
+
+                            <h3 class="text-[13px] font-bold text-slate-900 leading-tight truncate max-w-full">
+                                ${item.design}
+                            </h3>
                         </div>
 
                         <p class="text-[9px] font-medium text-slate-400 truncate w-full opacity-90">
