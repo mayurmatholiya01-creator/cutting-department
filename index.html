@@ -202,8 +202,7 @@
                 ${size}
             </button>
         `).join('');
-    }
-function renderGrid(data) {
+    }function renderGrid(data) {
         const grid = document.getElementById('cardGrid');
         const countEl = document.getElementById('showingCount');
         const noRes = document.getElementById('noResults');
@@ -225,48 +224,48 @@ function renderGrid(data) {
         // Lazy Render first 50
         data.slice(0, 50).forEach(item => {
             const el = document.createElement('div');
-            // Card Container: Shadow aur Rounded corners ko soft kiya hai
-            el.className = "bg-white rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden active-scale border border-slate-100 relative group transition-all duration-300";
+            // Card Style: Shadow soft kiya, Border light kiya
+            el.className = "bg-white rounded-[18px] shadow-sm border border-slate-200 overflow-hidden active-scale relative group";
             
-            // Status Logic
+            // Stock Status Dot Color
             const dotColor = item.qty > 100 ? 'bg-emerald-500' : (item.qty > 0 ? 'bg-amber-400' : 'bg-rose-500');
 
+            // Meta Data Formatting (Comma separated clean string)
+            // Surface • Body | Sample • Weight
+            const metaLine1 = `${item.surface} • ${item.body}`;
+            const metaLine2 = `${item.sample || '-'} • ${item.weight}kg`;
+
             el.innerHTML = `
-                <div class="relative h-60 bg-slate-50 overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
+                <div class="relative h-48 bg-slate-50 overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
                     <img src="${item.image}" loading="lazy" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
                     
-                    <div class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/10 to-transparent pointer-events-none"></div>
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
 
-                    <div class="absolute top-3 right-3 w-2.5 h-2.5 rounded-full ${dotColor} shadow-sm border border-white/50"></div>
+                    <div class="absolute top-2 right-2 w-2 h-2 rounded-full ${dotColor} shadow-sm border border-white"></div>
                 </div>
 
-                <div class="p-5 flex flex-col gap-1">
+                <div class="px-3 py-3 flex items-center justify-between gap-3 bg-white">
                     
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-[10px] font-bold text-slate-500 tracking-wide uppercase">${item.size}</span>
-                        <span class="text-[10px] font-medium text-slate-400 uppercase tracking-wide">${item.body}</span>
+                    <div class="flex flex-col items-center min-w-[50px] border-r border-slate-100 pr-3">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Crate</span>
+                        <span class="text-lg font-bold text-slate-900 font-mono leading-none mt-0.5">${item.crate.replace('C-', '')}</span>
                     </div>
 
-                    <h3 class="text-[17px] font-bold text-slate-800 leading-tight tracking-tight mb-0.5 truncate">${item.design}</h3>
-                    
-                    <p class="text-[11px] font-medium text-slate-400 mb-4">${item.surface} Finish</p>
-
-                    <div class="mt-auto"></div>
-
-                    <div class="flex justify-between items-end border-t border-slate-50 pt-3">
+                    <div class="flex-1 flex flex-col justify-center overflow-hidden">
+                        <h3 class="text-[14px] font-bold text-slate-800 leading-tight truncate w-full mb-1">${item.design}</h3>
                         
                         <div class="flex flex-col">
-                            <span class="text-[9px] font-bold text-slate-300 uppercase tracking-widest mb-0.5">Location</span>
-                            <span class="text-xl font-bold text-slate-900 font-mono tracking-tighter leading-none">${item.crate}</span>
-                        </div>
-                        
-                        <div class="flex flex-col items-end opacity-60">
-                            <span class="text-[9px] text-slate-400 font-medium mb-0.5">${item.sample || 'No Sample'}</span>
-                            <span class="text-[9px] text-slate-300 font-medium flex items-center gap-1">
-                                <i class="fa-solid fa-scale-balanced text-[8px]"></i> ${item.weight} kg
-                            </span>
+                            <p class="text-[10px] font-medium text-slate-500 truncate">${metaLine1}</p>
+                            <p class="text-[9px] font-medium text-slate-400 truncate opacity-80 mt-0.5">${metaLine2}</p>
                         </div>
                     </div>
+
+                    <div class="pl-1">
+                        <span class="px-2 py-1 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600 whitespace-nowrap shadow-sm">
+                            ${item.size}
+                        </span>
+                    </div>
+
                 </div>
             `;
             fragment.appendChild(el);
