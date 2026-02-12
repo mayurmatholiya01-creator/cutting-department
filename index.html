@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stock Viewer - Staff Mobile</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Stock OS</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -13,297 +15,371 @@
     
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        ios: {
+                            bg: '#F2F2F7',
+                            card: '#FFFFFF',
+                            blue: '#007AFF',
+                            gray: '#8E8E93',
+                            separator: '#C6C6C8',
+                            red: '#FF3B30',
+                            green: '#34C759'
+                        }
+                    },
+                    boxShadow: {
+                        'ios': '0 4px 12px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
+                        'float': '0 8px 32px rgba(0, 0, 0, 0.08)'
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        /* Custom Styles for Mobile smoothness */
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; }
+        /* iOS Smoothness */
+        body { background-color: #F2F2F7; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
         
-        /* Hide Scrollbar but keep functionality */
+        /* Hidden Scrollbar */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Smooth Scrolling */
-        html { scroll-behavior: smooth; }
+        /* Glassmorphism */
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 0.5px solid rgba(0,0,0,0.05); }
+        .glass-dark { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
 
-        /* Card Animation */
-        .stock-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-        .stock-card:active { transform: scale(0.98); }
+        /* Apple-like Interaction (Scale on Click) */
+        .active-scale:active { transform: scale(0.96); transition: transform 0.1s ease; }
 
-        /* Search Input Focus */
-        .search-box:focus-within { box-shadow: 0 4px 20px -5px rgba(37, 99, 235, 0.3); border-color: #3b82f6; }
-
-        /* Filter Chip Active State */
-        .chip.active { background-color: #0f172a; color: white; border-color: #0f172a; }
+        /* Input Reset */
+        input[type="text"] { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
-<body class="pb-20">
+<body class="pb-24 pt-44">
 
-    <header class="fixed top-0 left-0 right-0 bg-white z-50 shadow-sm border-b border-slate-100">
-        <div class="px-4 py-3 flex justify-between items-center bg-slate-900">
-            <div class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">TM</div>
-                <div>
-                    <h1 class="text-sm font-bold text-white leading-tight">Stock Viewer</h1>
-                    <p class="text-[10px] text-slate-400">Live Inventory</p>
-                </div>
-            </div>
-            <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
-                <i class="fa-solid fa-user text-xs"></i>
-            </div>
-        </div>
-
-        <div class="px-4 py-3">
-            <div class="search-box relative w-full bg-slate-50 border border-slate-200 rounded-xl flex items-center transition-all duration-300">
-                <i class="fa-solid fa-magnifying-glass absolute left-4 text-slate-400 text-sm"></i>
-                <input type="text" id="globalSearch" placeholder="Search Design, Surface..." class="w-full bg-transparent py-3 pl-10 pr-10 text-sm font-medium text-slate-700 outline-none placeholder-slate-400" oninput="handleSearch(this.value)">
-                <button id="clearSearch" class="absolute right-3 text-slate-300 hover:text-slate-500 hidden" onclick="clearSearch()">
-                    <i class="fa-solid fa-circle-xmark"></i>
-                </button>
-            </div>
-        </div>
-
-        <div class="border-t border-slate-50">
-            <div class="flex gap-2 overflow-x-auto no-scrollbar px-4 py-3" id="sizeFilterContainer">
-                </div>
-        </div>
+    <header class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
         
-        <div class="px-4 py-1.5 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-            <span>Showing: <span id="showingCount" class="text-slate-800">0</span> items</span>
-            <span id="activeFilterLabel" class="hidden text-blue-600">Filter Active</span>
+        <div class="h-safe-top w-full bg-white/90 backdrop-blur-md"></div>
+
+        <div class="glass pb-2 pt-2">
+            <div class="px-5 py-2 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Stock<span class="text-ios-blue">OS</span></h1>
+                    <p class="text-[11px] font-medium text-slate-400 uppercase tracking-widest mt-0.5">Premium Inventory</p>
+                </div>
+                <div class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 shadow-sm active-scale">
+                    <i class="fa-solid fa-user text-sm"></i>
+                </div>
+            </div>
+
+            <div class="px-5 mt-1">
+                <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-magnifying-glass text-slate-400 text-sm"></i>
+                    </div>
+                    <input type="text" id="globalSearch" 
+                        class="block w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-100/80 border-none text-slate-900 placeholder-slate-400 focus:ring-0 focus:bg-white focus:shadow-ios transition-all text-[15px] font-medium"
+                        placeholder="Search Design, Crate..." oninput="handleSearch(this.value)">
+                    
+                    <button id="clearSearch" class="absolute inset-y-0 right-0 pr-3 flex items-center hidden" onclick="clearSearch()">
+                        <i class="fa-solid fa-circle-xmark text-slate-300 text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-3 pl-5 pr-2 overflow-x-auto no-scrollbar flex gap-2.5 pb-2" id="sizeFilterContainer">
+                </div>
+        </div>
+
+        <div class="bg-white/50 backdrop-blur-sm border-b border-slate-200/50 px-5 py-1.5 flex justify-between items-center text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+            <span>Result: <span id="showingCount" class="text-slate-900">0</span> Units</span>
+            <span id="activeFilterLabel" class="text-ios-blue hidden opacity-0 transition-opacity duration-300">Filter Active</span>
         </div>
     </header>
 
-    <div class="h-[185px]"></div>
-
-    <main class="px-3 pt-2" id="mainContainer">
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="cardGrid">
+    <main class="px-4" id="mainContainer">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="cardGrid">
             </div>
 
-        <div id="noResults" class="hidden flex-col items-center justify-center py-20 text-center">
-            <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                <i class="fa-solid fa-box-open text-3xl text-slate-300"></i>
+        <div id="noResults" class="hidden flex-col items-center justify-center py-24 text-center">
+            <div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                <i class="fa-solid fa-magnifying-glass text-3xl text-slate-300"></i>
             </div>
-            <h3 class="text-slate-600 font-bold">No Stock Found</h3>
-            <p class="text-sm text-slate-400 mt-1">Try adjusting your search or filters</p>
-            <button onclick="resetFilters()" class="mt-4 px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-full shadow-lg shadow-blue-200">Clear All</button>
+            <h2 class="text-slate-800 font-bold text-lg">No Items Found</h2>
+            <p class="text-slate-400 text-sm mt-1 max-w-[200px] mx-auto">We couldn't find any stock matching your criteria.</p>
+            <button onclick="resetFilters()" class="mt-6 px-6 py-2.5 bg-ios-blue text-white text-sm font-semibold rounded-full shadow-lg shadow-blue-200 active-scale">
+                Reset Filters
+            </button>
         </div>
-
     </main>
 
-    <div id="imageModal" class="fixed inset-0 z-[100] hidden bg-black/95 backdrop-blur-sm flex items-center justify-center p-4" onclick="closeModal()">
-        <button class="absolute top-4 right-4 w-10 h-10 bg-white/10 rounded-full text-white flex items-center justify-center backdrop-blur-md" onclick="closeModal()">
+    <div id="imageModal" class="fixed inset-0 z-[100] hidden glass-dark flex flex-col items-center justify-center p-4 opacity-0 transition-opacity duration-300" onclick="closeModal()">
+        
+        <button class="absolute top-6 right-6 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full text-white flex items-center justify-center active-scale z-50 shadow-lg border border-white/10" onclick="closeModal()">
             <i class="fa-solid fa-xmark text-lg"></i>
         </button>
-        <div class="relative w-full max-w-lg" onclick="event.stopPropagation()">
-            <img id="modalImage" src="" class="w-full h-auto rounded-lg shadow-2xl border border-white/10">
-            <div class="absolute bottom-4 left-0 right-0 text-center">
-                <span id="modalTitle" class="bg-black/50 text-white px-4 py-1.5 rounded-full text-sm font-bold backdrop-blur-md">Design Name</span>
+
+        <div class="relative w-full max-w-md bg-transparent rounded-2xl overflow-hidden shadow-2xl transition-transform duration-300 scale-95" id="modalContent" onclick="event.stopPropagation()">
+            <img id="modalImage" src="" class="w-full h-auto object-cover bg-white">
+            
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 pt-12">
+                <h3 id="modalTitle" class="text-white text-2xl font-bold shadow-black drop-shadow-md">Design Name</h3>
+                <p class="text-white/80 text-sm font-medium mt-1">Tap anywhere to close</p>
             </div>
         </div>
     </div>
 
-    <button onclick="window.scrollTo({top:0, behavior:'smooth'})" class="fixed bottom-6 right-6 w-12 h-12 bg-slate-900 text-white rounded-full shadow-xl shadow-slate-900/30 flex items-center justify-center z-40 active:scale-90 transition-transform">
-        <i class="fa-solid fa-arrow-up"></i>
+    <button onclick="window.scrollTo({top:0, behavior:'smooth'})" class="fixed bottom-6 right-6 w-14 h-14 bg-slate-900/90 backdrop-blur-md text-white rounded-full shadow-float flex items-center justify-center z-40 active-scale border border-white/10">
+        <i class="fa-solid fa-arrow-up text-lg"></i>
     </button>
 
 <script>
     // ==========================================
-    // 1. DUMMY DATA GENERATION
+    // 1. DATA & CONFIG (Pro Level Dummy Data)
     // ==========================================
-    const DUMMY_IMAGES = [
-        "https://images.unsplash.com/photo-1620121474603-33c5c8d55590?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-        "https://images.unsplash.com/photo-1616464916356-3a777b2b60b1?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-        "https://images.unsplash.com/photo-1594818379496-da1e345b0ded?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-        "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
-    ];
-
-    const SIZES = ["1200x600", "600x600", "800x800", "1200x1200", "300x450"];
-    const SURFACES = ["High Gloss", "Matt", "Carving", "Polished"];
-    const BODIES = ["Vitrified", "Ceramic", "GVT", "PGVT"];
-    const SAMPLES = ["10x10", "4x4", "Full Piece", ""];
+    const DATA_CONFIG = {
+        images: [
+            "https://images.unsplash.com/photo-1620121474603-33c5c8d55590?ixlib=rb-4.0.3&w=800&q=80",
+            "https://images.unsplash.com/photo-1616464916356-3a777b2b60b1?ixlib=rb-4.0.3&w=800&q=80",
+            "https://images.unsplash.com/photo-1594818379496-da1e345b0ded?ixlib=rb-4.0.3&w=800&q=80",
+            "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?ixlib=rb-4.0.3&w=800&q=80",
+            "https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&w=800&q=80"
+        ],
+        sizes: ["1200x600", "600x600", "800x800", "1200x1200", "300x450"],
+        surfaces: ["High Gloss", "Super Matt", "Carving", "Polished", "Sugar"],
+        bodies: ["Vitrified", "Ceramic", "GVT", "Full Body"],
+        samples: ["10x10 Cut", "4x4 Cut", "Full Piece", "Binder"]
+    };
 
     let rawData = [];
-    let currentData = [];
     let activeSize = 'All';
 
-    // Generate 100 Random Entries
-    function generateDummyData() {
-        for(let i=1; i<=100; i++) {
-            rawData.push({
-                id: i,
-                design: `Royal ${SURFACES[Math.floor(Math.random()*SURFACES.length)]} ${i}`,
-                size: SIZES[Math.floor(Math.random()*SIZES.length)],
-                surface: SURFACES[Math.floor(Math.random()*SURFACES.length)],
-                body: BODIES[Math.floor(Math.random()*BODIES.length)],
-                crate: `C-${1000 + i}`,
-                qty: Math.floor(Math.random() * 500) + 10,
-                sample_size: SAMPLES[Math.floor(Math.random()*SAMPLES.length)],
-                weight: Math.floor(Math.random() * 30) + 15,
-                image: DUMMY_IMAGES[Math.floor(Math.random()*DUMMY_IMAGES.length)]
-            });
-        }
-        currentData = [...rawData];
+    // Generate 150 High-Fidelity Items
+    function generateData() {
+        rawData = Array.from({length: 150}, (_, i) => ({
+            id: i,
+            design: `Statuario ${DATA_CONFIG.surfaces[Math.floor(Math.random()*5)]} ${i}`,
+            size: DATA_CONFIG.sizes[Math.floor(Math.random()*5)],
+            surface: DATA_CONFIG.surfaces[Math.floor(Math.random()*5)],
+            body: DATA_CONFIG.bodies[Math.floor(Math.random()*4)],
+            crate: `C-${2024 + i}`,
+            qty: Math.floor(Math.random() * 800),
+            sample: Math.random() > 0.3 ? DATA_CONFIG.samples[Math.floor(Math.random()*4)] : null,
+            weight: (Math.random() * 10 + 20).toFixed(1),
+            image: DATA_CONFIG.images[i % 5]
+        }));
     }
 
     // ==========================================
-    // 2. RENDER FUNCTIONS
+    // 2. RENDERING ENGINE
     // ==========================================
 
-    function initApp() {
-        generateDummyData();
+    function init() {
+        generateData();
         renderFilters();
-        renderCards(currentData);
+        renderGrid(rawData);
         
-        // Setup Search (Fuse.js)
+        // Init Fuse.js
         window.fuse = new Fuse(rawData, {
             keys: ['design', 'size', 'surface', 'crate'],
-            threshold: 0.3
+            threshold: 0.35,
+            ignoreLocation: true
         });
     }
 
     function renderFilters() {
+        const sizes = ['All', ...new Set(rawData.map(i => i.size))].sort();
         const container = document.getElementById('sizeFilterContainer');
-        const uniqueSizes = ['All', ...new Set(rawData.map(i => i.size))].sort();
         
-        container.innerHTML = uniqueSizes.map(size => `
+        container.innerHTML = sizes.map(size => `
             <button onclick="filterBySize('${size}')" 
-                class="chip ${size === 'All' ? 'active' : ''} whitespace-nowrap px-4 py-1.5 rounded-full border border-slate-200 text-xs font-bold text-slate-500 bg-white shadow-sm transition-all active:scale-95"
+                class="chip active-scale whitespace-nowrap px-5 py-2 rounded-full text-[13px] font-semibold transition-all shadow-sm border ${size === 'All' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'}"
                 data-size="${size}">
                 ${size}
             </button>
         `).join('');
     }
 
-    function renderCards(data) {
+    function renderGrid(data) {
         const grid = document.getElementById('cardGrid');
         const countEl = document.getElementById('showingCount');
         const noRes = document.getElementById('noResults');
 
         grid.innerHTML = '';
         countEl.innerText = data.length;
-
-        if(data.length === 0) {
+        
+        if (data.length === 0) {
             noRes.classList.remove('hidden');
             noRes.classList.add('flex');
             return;
-        } else {
-            noRes.classList.add('hidden');
-            noRes.classList.remove('flex');
         }
+        
+        noRes.classList.add('hidden');
+        noRes.classList.remove('flex');
 
-        const displayData = data.slice(0, 50); 
-
-        displayData.forEach(item => {
-            const card = document.createElement('div');
-            card.className = "stock-card bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden relative";
+        const fragment = document.createDocumentFragment();
+        
+        // Lazy Render first 50
+        data.slice(0, 50).forEach(item => {
+            const el = document.createElement('div');
+            el.className = "bg-white rounded-[20px] shadow-ios overflow-hidden active-scale border border-slate-100/50 relative group";
             
-            // Stock Status Color Dot
-            const stockColor = item.qty > 50 ? 'bg-green-500' : 'bg-red-500';
+            // Status Dot Color
+            const dotColor = item.qty > 100 ? 'bg-green-500' : (item.qty > 0 ? 'bg-orange-400' : 'bg-red-500');
 
-            card.innerHTML = `
-                <div class="relative h-56 w-full bg-slate-100 overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
-                    <img src="${item.image}" loading="lazy" class="w-full h-full object-cover">
-                    <div class="absolute top-2 right-2 w-2.5 h-2.5 rounded-full ${stockColor} border border-white shadow-sm"></div>
+            el.innerHTML = `
+                <div class="relative h-56 bg-slate-100 overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
+                    <img src="${item.image}" loading="lazy" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
+                    
+                    <div class="absolute inset-0 bg-gradient-to-b from-black/5 to-transparent pointer-events-none"></div>
+
+                    <div class="absolute top-3 right-3 flex items-center justify-center w-6 h-6 rounded-full bg-white/90 backdrop-blur-sm shadow-sm">
+                        <div class="w-2.5 h-2.5 rounded-full ${dotColor} shadow-[0_0_8px_rgba(0,0,0,0.2)]"></div>
+                    </div>
                 </div>
 
-                <div class="p-3">
+                <div class="p-4 pt-3.5">
                     
-                    <div class="flex justify-between items-start mb-1 gap-3">
-                        <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded whitespace-nowrap h-fit">${item.size}</span>
-                        <span class="text-sm font-bold text-slate-900 text-right leading-tight">${item.design}</span>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="px-2.5 py-1 rounded-md bg-slate-100 text-[11px] font-bold text-slate-500 tracking-wide">${item.size}</span>
+                        <h3 class="text-[15px] font-bold text-slate-900 leading-tight text-right truncate max-w-[60%]">${item.design}</h3>
                     </div>
 
                     <div class="flex justify-between items-center mb-3">
-                        <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">${item.surface}</span>
-                        <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">${item.body}</span>
+                        <span class="text-[11px] font-medium text-slate-400 uppercase tracking-wide">${item.surface}</span>
+                        <span class="text-[11px] font-medium text-slate-400 uppercase tracking-wide text-right">${item.body}</span>
                     </div>
 
-                    <div class="h-px bg-slate-50 w-full mb-2"></div>
+                    <div class="h-px bg-slate-100 w-full mb-3"></div>
 
-                    <div class="flex justify-between items-start">
-                        <span class="text-xl font-bold text-blue-600 font-mono tracking-tighter">${item.crate}</span>
-
-                        <div class="flex flex-col items-end">
-                            <span class="text-[10px] font-bold text-slate-600">${item.sample_size || '-'}</span>
-                            <span class="text-[9px] text-slate-400 mt-0.5">${item.weight ? item.weight + ' kg' : ''}</span>
+                    <div class="flex justify-between items-end">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-0.5">Crate ID</span>
+                            <span class="text-xl font-bold text-ios-blue font-mono tracking-tighter leading-none">${item.crate}</span>
+                        </div>
+                        
+                        <div class="flex flex-col items-end text-right">
+                            ${item.sample ? `<span class="text-[11px] font-bold text-slate-700 bg-blue-50 px-2 py-0.5 rounded mb-1 text-ios-blue">${item.sample}</span>` : '<span class="text-[11px] text-slate-300 italic mb-1">No Sample</span>'}
+                            <span class="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
+                                <i class="fa-solid fa-weight-hanging text-[9px]"></i> ${item.weight} kg
+                            </span>
                         </div>
                     </div>
-
                 </div>
             `;
-            grid.appendChild(card);
+            fragment.appendChild(el);
         });
+        grid.appendChild(fragment);
     }
 
     // ==========================================
-    // 3. FILTER & SEARCH LOGIC
+    // 3. LOGIC CONTROLLERS
     // ==========================================
 
     function filterBySize(size) {
         activeSize = size;
-        document.querySelectorAll('.chip').forEach(c => {
-            if(c.dataset.size === size) c.classList.add('active');
-            else c.classList.remove('active');
+        
+        // Button Styles
+        document.querySelectorAll('.chip').forEach(btn => {
+            const isSelected = btn.dataset.size === size;
+            btn.className = `chip active-scale whitespace-nowrap px-5 py-2 rounded-full text-[13px] font-semibold transition-all shadow-sm border ${isSelected ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-600 border-slate-200'}`;
         });
-        applyFilters();
+
+        runQuery();
     }
 
     function handleSearch(val) {
         const clearBtn = document.getElementById('clearSearch');
         if(val.length > 0) clearBtn.classList.remove('hidden');
         else clearBtn.classList.add('hidden');
-        applyFilters();
+        runQuery();
     }
 
     function clearSearch() {
-        document.getElementById('globalSearch').value = '';
+        const input = document.getElementById('globalSearch');
+        input.value = '';
+        input.focus();
         handleSearch('');
     }
 
-    function applyFilters() {
-        const query = document.getElementById('globalSearch').value.trim();
-        let data = rawData;
-        if(activeSize !== 'All') {
-            data = data.filter(item => item.size === activeSize);
-        }
-        if(query.length > 0) {
-            const results = window.fuse.search(query);
-            data = results.map(r => r.item).filter(item => {
-                return activeSize === 'All' || item.size === activeSize;
-            });
-        }
-        renderCards(data);
-        const filterLabel = document.getElementById('activeFilterLabel');
-        if(activeSize !== 'All' || query.length > 0) filterLabel.classList.remove('hidden');
-        else filterLabel.classList.add('hidden');
-    }
-
     function resetFilters() {
-        document.getElementById('globalSearch').value = '';
-        filterBySize('All');
         clearSearch();
+        filterBySize('All');
+        // Scroll tags to start
+        document.getElementById('sizeFilterContainer').scrollLeft = 0;
+    }
+
+    function runQuery() {
+        const query = document.getElementById('globalSearch').value.trim();
+        let results = rawData;
+
+        if (activeSize !== 'All') {
+            results = results.filter(i => i.size === activeSize);
+        }
+
+        if (query.length > 0) {
+            const fuseResult = window.fuse.search(query);
+            // Filter Fuse results by Size if needed
+            results = fuseResult.map(r => r.item).filter(i => activeSize === 'All' || i.size === activeSize);
+        }
+
+        // Show/Hide "Filter Active" label
+        const filterLbl = document.getElementById('activeFilterLabel');
+        if(activeSize !== 'All' || query.length > 0) {
+            filterLbl.classList.remove('hidden');
+            setTimeout(() => filterLbl.classList.remove('opacity-0'), 10);
+        } else {
+            filterLbl.classList.add('opacity-0');
+            setTimeout(() => filterLbl.classList.add('hidden'), 300);
+        }
+
+        renderGrid(results);
     }
 
     // ==========================================
-    // 4. MODAL LOGIC
+    // 4. ANIMATIONS & MODAL
     // ==========================================
 
-    function openModal(imgSrc, title) {
+    function openModal(src, title) {
         const modal = document.getElementById('imageModal');
-        document.getElementById('modalImage').src = imgSrc;
-        document.getElementById('modalTitle').innerText = title;
+        const content = document.getElementById('modalContent');
+        const img = document.getElementById('modalImage');
+        const txt = document.getElementById('modalTitle');
+
+        img.src = src;
+        txt.innerText = title;
+        
         modal.classList.remove('hidden');
+        // Small delay for transition
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            content.classList.remove('scale-95');
+            content.classList.add('scale-100');
+        }, 10);
+
         document.body.style.overflow = 'hidden';
     }
 
     function closeModal() {
         const modal = document.getElementById('imageModal');
-        modal.classList.add('hidden');
-        document.body.style.overflow = 'auto';
+        const content = document.getElementById('modalContent');
+
+        modal.classList.add('opacity-0');
+        content.classList.remove('scale-100');
+        content.classList.add('scale-95');
+
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }, 300);
     }
 
-    // Initialize
-    initApp();
+    // Start
+    init();
 
 </script>
 </body>
