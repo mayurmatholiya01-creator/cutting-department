@@ -52,8 +52,8 @@
         .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 0.5px solid rgba(0,0,0,0.05); }
         .glass-dark { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
 
-        /* Apple-like Interaction (Scale on Click) */
-        .active-scale:active { transform: scale(0.96); transition: transform 0.1s ease; }
+        /* Apple-like Interaction */
+        .active-scale:active { transform: scale(0.98); transition: transform 0.1s ease; }
 
         /* Input Reset */
         input[type="text"] { -webkit-appearance: none; margin: 0; }
@@ -101,16 +101,16 @@
         </div>
     </header>
 
-    <main class="px-4" id="mainContainer">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="cardGrid">
+    <main class="px-3 pt-2" id="mainContainer">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="cardGrid">
             </div>
 
         <div id="noResults" class="hidden flex-col items-center justify-center py-24 text-center">
-            <div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
+            <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
                 <i class="fa-solid fa-magnifying-glass text-3xl text-slate-300"></i>
             </div>
             <h2 class="text-slate-800 font-bold text-lg">No Items Found</h2>
-            <p class="text-slate-400 text-sm mt-1 max-w-[200px] mx-auto">We couldn't find any stock matching your criteria.</p>
+            <p class="text-slate-400 text-sm mt-1 max-w-[200px] mx-auto">Try adjusting your filters.</p>
             <button onclick="resetFilters()" class="mt-6 px-6 py-2.5 bg-ios-blue text-white text-sm font-semibold rounded-full shadow-lg shadow-blue-200 active-scale">
                 Reset Filters
             </button>
@@ -118,14 +118,12 @@
     </main>
 
     <div id="imageModal" class="fixed inset-0 z-[100] hidden glass-dark flex flex-col items-center justify-center p-4 opacity-0 transition-opacity duration-300" onclick="closeModal()">
-        
         <button class="absolute top-6 right-6 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full text-white flex items-center justify-center active-scale z-50 shadow-lg border border-white/10" onclick="closeModal()">
             <i class="fa-solid fa-xmark text-lg"></i>
         </button>
 
         <div class="relative w-full max-w-md bg-transparent rounded-2xl overflow-hidden shadow-2xl transition-transform duration-300 scale-95" id="modalContent" onclick="event.stopPropagation()">
             <img id="modalImage" src="" class="w-full h-auto object-cover bg-white">
-            
             <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 pt-12">
                 <h3 id="modalTitle" class="text-white text-2xl font-bold shadow-black drop-shadow-md">Design Name</h3>
                 <p class="text-white/80 text-sm font-medium mt-1">Tap anywhere to close</p>
@@ -133,13 +131,13 @@
         </div>
     </div>
 
-    <button onclick="window.scrollTo({top:0, behavior:'smooth'})" class="fixed bottom-6 right-6 w-14 h-14 bg-slate-900/90 backdrop-blur-md text-white rounded-full shadow-float flex items-center justify-center z-40 active-scale border border-white/10">
+    <button onclick="window.scrollTo({top:0, behavior:'smooth'})" class="fixed bottom-6 right-6 w-12 h-12 bg-slate-900/90 backdrop-blur-md text-white rounded-full shadow-float flex items-center justify-center z-40 active-scale border border-white/10">
         <i class="fa-solid fa-arrow-up text-lg"></i>
     </button>
 
 <script>
     // ==========================================
-    // 1. DATA & CONFIG (Pro Level Dummy Data)
+    // 1. DATA CONFIG (REAL EXCEL VALUES)
     // ==========================================
     const DATA_CONFIG = {
         images: [
@@ -149,28 +147,47 @@
             "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?ixlib=rb-4.0.3&w=800&q=80",
             "https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&w=800&q=80"
         ],
-        sizes: ["1200x600", "600x600", "800x800", "1200x1200", "300x450"],
-        surfaces: ["High Gloss", "Super Matt", "Carving", "Polished", "Sugar"],
-        bodies: ["Vitrified", "Ceramic", "GVT", "Full Body"],
-        samples: ["10x10 Cut", "4x4 Cut", "Full Piece", "Binder"]
+        // Values from your uploaded Excel
+        sizes: [
+            "1600X3200X12MM", "1200X2400X9MM", "1200X2400X10MM", 
+            "1200X2400X11MM", "800x3000x15mm", "800x2400x15mm", "1600x1600x9mm"
+        ],
+        bodies: [
+            "REGULAR", "DARK GREY", "BROWN", "ASH GREY", "ZED BLACK", 
+            "BLACK", "GREY BODY", "L-90 WHITE"
+        ],
+        surfaces: [
+            "GRAVEL", "ILLUSION", "METTALIC", "SAHARA", "SHAPE TECH", "SOFT SATIN"
+        ],
+        designs: [
+            "LINEA STONECREMA", "PIETRA DI VALS SCURO", "RESIN MIRAG SAND", 
+            "RESIN MIRAG SCURO", "SPARKEL NERO", "PIZZARA SLATE", 
+            "LIMON STONE TAUPE", "CARARA FREDO"
+        ],
+        sample: "105X205",
+        weight: "392"
     };
 
     let rawData = [];
     let activeSize = 'All';
 
-    // Generate 150 High-Fidelity Items
+    // Generate 100 Entries using Excel Logic
     function generateData() {
-        rawData = Array.from({length: 150}, (_, i) => ({
+        rawData = Array.from({length: 100}, (_, i) => ({
             id: i,
-            design: `Statuario ${DATA_CONFIG.surfaces[Math.floor(Math.random()*5)]} ${i}`,
-            size: DATA_CONFIG.sizes[Math.floor(Math.random()*5)],
-            surface: DATA_CONFIG.surfaces[Math.floor(Math.random()*5)],
-            body: DATA_CONFIG.bodies[Math.floor(Math.random()*4)],
-            crate: `C-${2024 + i}`,
-            qty: Math.floor(Math.random() * 800),
-            sample: Math.random() > 0.3 ? DATA_CONFIG.samples[Math.floor(Math.random()*4)] : null,
-            weight: (Math.random() * 10 + 20).toFixed(1),
-            image: DATA_CONFIG.images[i % 5]
+            // Randomly pick from arrays
+            design: DATA_CONFIG.designs[i % DATA_CONFIG.designs.length], 
+            size: DATA_CONFIG.sizes[i % DATA_CONFIG.sizes.length],
+            surface: DATA_CONFIG.surfaces[i % DATA_CONFIG.surfaces.length],
+            body: DATA_CONFIG.bodies[i % DATA_CONFIG.bodies.length],
+            
+            crate: `C-${String(i + 1).padStart(2, '0')}`, // C-01, C-02...
+            qty: Math.floor(Math.random() * 500) + 20,
+            
+            sample: DATA_CONFIG.sample,
+            weight: DATA_CONFIG.weight,
+            
+            image: DATA_CONFIG.images[i % DATA_CONFIG.images.length]
         }));
     }
 
@@ -192,17 +209,20 @@
     }
 
     function renderFilters() {
+        // Unique Sizes ko sort karke dikhao
         const sizes = ['All', ...new Set(rawData.map(i => i.size))].sort();
         const container = document.getElementById('sizeFilterContainer');
         
         container.innerHTML = sizes.map(size => `
             <button onclick="filterBySize('${size}')" 
-                class="chip active-scale whitespace-nowrap px-5 py-2 rounded-full text-[13px] font-semibold transition-all shadow-sm border ${size === 'All' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'}"
+                class="chip active-scale whitespace-nowrap px-4 py-1.5 rounded-full text-[11px] font-bold transition-all shadow-sm border ${size === 'All' ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-600 border-slate-200'}"
                 data-size="${size}">
-                ${size}
+                ${size.replace('X', ' x ')} 
             </button>
         `).join('');
-    }function renderGrid(data) {
+    }
+
+    function renderGrid(data) {
         const grid = document.getElementById('cardGrid');
         const countEl = document.getElementById('showingCount');
         const noRes = document.getElementById('noResults');
@@ -224,45 +244,36 @@
         // Lazy Render first 50
         data.slice(0, 50).forEach(item => {
             const el = document.createElement('div');
-            // Card Style: Shadow soft kiya, Border light kiya
-            el.className = "bg-white rounded-[18px] shadow-sm border border-slate-200 overflow-hidden active-scale relative group";
+            // COMPACT CARD STYLE
+            el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden active-scale relative group";
             
-            // Stock Status Dot Color
             const dotColor = item.qty > 100 ? 'bg-emerald-500' : (item.qty > 0 ? 'bg-amber-400' : 'bg-rose-500');
-
-            // Meta Data Formatting (Comma separated clean string)
-            // Surface • Body | Sample • Weight
-            const metaLine1 = `${item.surface} • ${item.body}`;
-            const metaLine2 = `${item.sample || '-'} • ${item.weight}kg`;
+            
+            // Subtext String construction
+            const subtext = `${item.surface} • ${item.body} • ${item.sample} • ${item.weight}kg`;
 
             el.innerHTML = `
-                <div class="relative h-48 bg-slate-50 overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
+                <div class="relative h-44 bg-slate-50 overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
                     <img src="${item.image}" loading="lazy" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
-                    
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
-
                     <div class="absolute top-2 right-2 w-2 h-2 rounded-full ${dotColor} shadow-sm border border-white"></div>
                 </div>
 
-                <div class="px-3 py-3 flex items-center justify-between gap-3 bg-white">
+                <div class="px-3 py-2.5 flex items-center justify-between gap-3 bg-white min-h-[60px]">
                     
-                    <div class="flex flex-col items-center min-w-[50px] border-r border-slate-100 pr-3">
-                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Crate</span>
-                        <span class="text-lg font-bold text-slate-900 font-mono leading-none mt-0.5">${item.crate.replace('C-', '')}</span>
+                    <div class="flex flex-col items-center justify-center min-w-[45px] border-r border-slate-100 pr-3">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Crate</span>
+                        <span class="text-lg font-bold text-ios-blue font-mono leading-none mt-0.5">${item.crate.replace('C-', '')}</span>
                     </div>
 
                     <div class="flex-1 flex flex-col justify-center overflow-hidden">
-                        <h3 class="text-[14px] font-bold text-slate-800 leading-tight truncate w-full mb-1">${item.design}</h3>
+                        <h3 class="text-[13px] font-bold text-slate-800 leading-tight truncate w-full mb-0.5">${item.design}</h3>
                         
-                        <div class="flex flex-col">
-                            <p class="text-[10px] font-medium text-slate-500 truncate">${metaLine1}</p>
-                            <p class="text-[9px] font-medium text-slate-400 truncate opacity-80 mt-0.5">${metaLine2}</p>
-                        </div>
+                        <p class="text-[9px] font-medium text-slate-500 truncate opacity-80">${subtext}</p>
                     </div>
 
                     <div class="pl-1">
-                        <span class="px-2 py-1 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600 whitespace-nowrap shadow-sm">
-                            ${item.size}
+                        <span class="px-2 py-1 rounded bg-slate-100 border border-slate-200 text-[9px] font-bold text-slate-600 whitespace-nowrap shadow-sm">
+                            ${item.size.split('X')[0]}..
                         </span>
                     </div>
 
@@ -279,13 +290,10 @@
 
     function filterBySize(size) {
         activeSize = size;
-        
-        // Button Styles
         document.querySelectorAll('.chip').forEach(btn => {
             const isSelected = btn.dataset.size === size;
-            btn.className = `chip active-scale whitespace-nowrap px-5 py-2 rounded-full text-[13px] font-semibold transition-all shadow-sm border ${isSelected ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-600 border-slate-200'}`;
+            btn.className = `chip active-scale whitespace-nowrap px-4 py-1.5 rounded-full text-[11px] font-bold transition-all shadow-sm border ${isSelected ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-600 border-slate-200'}`;
         });
-
         runQuery();
     }
 
@@ -306,7 +314,6 @@
     function resetFilters() {
         clearSearch();
         filterBySize('All');
-        // Scroll tags to start
         document.getElementById('sizeFilterContainer').scrollLeft = 0;
     }
 
@@ -320,11 +327,9 @@
 
         if (query.length > 0) {
             const fuseResult = window.fuse.search(query);
-            // Filter Fuse results by Size if needed
             results = fuseResult.map(r => r.item).filter(i => activeSize === 'All' || i.size === activeSize);
         }
 
-        // Show/Hide "Filter Active" label
         const filterLbl = document.getElementById('activeFilterLabel');
         if(activeSize !== 'All' || query.length > 0) {
             filterLbl.classList.remove('hidden');
@@ -351,7 +356,6 @@
         txt.innerText = title;
         
         modal.classList.remove('hidden');
-        // Small delay for transition
         setTimeout(() => {
             modal.classList.remove('opacity-0');
             content.classList.remove('scale-95');
