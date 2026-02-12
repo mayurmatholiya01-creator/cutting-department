@@ -204,16 +204,22 @@
             const el = document.createElement('div');
             el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden active-scale relative group";
             
-            const dotColor = item.qty > 100 ? 'bg-emerald-500' : (item.qty > 0 ? 'bg-amber-400' : 'bg-rose-500');
+            // Subtext Construction
             const subtext = `${item.surface} • ${item.body} • ${item.sample} • ${item.weight}kg`;
             
-            // Format Size neatly
-            const cleanSize = `${item.size.split('X')[0]}x${item.size.split('X')[1]}`;
+            // UNDEFINED FIX: Check if size exists before splitting
+            let cleanSize = "N/A";
+            if(item.size && item.size.includes('X')) {
+                // Agar 'X' hai to split karo
+                cleanSize = `${item.size.split('X')[0]}x${item.size.split('X')[1]}`;
+            } else if (item.size) {
+                // Agar 'X' nahi hai to direct dikhao
+                cleanSize = item.size;
+            }
 
             el.innerHTML = `
                 <div class="relative h-44 bg-slate-50 overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
                     <img src="${item.image}" loading="lazy" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
-                    <div class="absolute top-2 right-2 w-2 h-2 rounded-full ${dotColor} shadow-sm border border-white"></div>
                 </div>
 
                 <div class="flex items-stretch min-h-[60px] bg-white">
@@ -225,19 +231,20 @@
 
                     <div class="flex-1 flex flex-col items-center justify-center p-2 text-center">
                         
-                        <div class="flex items-center justify-center gap-1.5 mb-0.5 w-full flex-wrap px-1">
-                            <span class="text-[13px] font-bold text-slate-500 whitespace-nowrap">
+                        <div class="flex items-center justify-center gap-1.5 mb-1 w-full flex-wrap px-1">
+                            
+                            <span class="text-[13px] font-bold text-slate-800 tracking-wide whitespace-nowrap">
                                 ${cleanSize}
                             </span>
                             
                             <span class="text-[12px] text-slate-300">|</span>
 
-                            <h3 class="text-[13px] font-bold text-slate-900 leading-tight truncate max-w-full">
+                            <h3 class="text-[13px] font-bold text-slate-900 leading-tight truncate max-w-full tracking-wide">
                                 ${item.design}
                             </h3>
                         </div>
 
-                        <p class="text-[9px] font-medium text-slate-400 truncate w-full opacity-90">
+                        <p class="text-[9px] font-medium text-slate-400 truncate w-full opacity-90 tracking-wider">
                             ${subtext}
                         </p>
                     </div>
