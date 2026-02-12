@@ -76,7 +76,7 @@
 
     <main class="px-3 pt-2" id="mainContainer">
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="cardGrid">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="cardGrid">
             </div>
 
         <div id="noResults" class="hidden flex-col items-center justify-center py-20 text-center">
@@ -108,18 +108,19 @@
 
 <script>
     // ==========================================
-    // 1. DUMMY DATA GENERATION (Simulating Firebase)
+    // 1. DUMMY DATA GENERATION
     // ==========================================
     const DUMMY_IMAGES = [
-        "https://images.unsplash.com/photo-1620121474603-33c5c8d55590?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80", // Marble 1
-        "https://images.unsplash.com/photo-1616464916356-3a777b2b60b1?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80", // Marble 2
-        "https://images.unsplash.com/photo-1594818379496-da1e345b0ded?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80", // Texture
-        "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"  // Dark
+        "https://images.unsplash.com/photo-1620121474603-33c5c8d55590?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
+        "https://images.unsplash.com/photo-1616464916356-3a777b2b60b1?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
+        "https://images.unsplash.com/photo-1594818379496-da1e345b0ded?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
+        "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
     ];
 
     const SIZES = ["1200x600", "600x600", "800x800", "1200x1200", "300x450"];
     const SURFACES = ["High Gloss", "Matt", "Carving", "Polished"];
     const BODIES = ["Vitrified", "Ceramic", "GVT", "PGVT"];
+    const SAMPLES = ["10x10", "4x4", "Full Piece", ""];
 
     let rawData = [];
     let currentData = [];
@@ -136,7 +137,8 @@
                 body: BODIES[Math.floor(Math.random()*BODIES.length)],
                 crate: `C-${1000 + i}`,
                 qty: Math.floor(Math.random() * 500) + 10,
-                box: Math.floor(Math.random() * 50) + 5,
+                sample_size: SAMPLES[Math.floor(Math.random()*SAMPLES.length)],
+                weight: Math.floor(Math.random() * 30) + 15,
                 image: DUMMY_IMAGES[Math.floor(Math.random()*DUMMY_IMAGES.length)]
             });
         }
@@ -189,52 +191,44 @@
             noRes.classList.remove('flex');
         }
 
-        // Limit rendering for performance (Lazy Load Simulation)
         const displayData = data.slice(0, 50); 
 
         displayData.forEach(item => {
             const card = document.createElement('div');
-            card.className = "stock-card bg-white rounded-xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] overflow-hidden border border-slate-100 relative";
+            card.className = "stock-card bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden relative";
             
-            // Stock Status Indicator (Color based on Qty)
-            const stockColor = item.qty > 200 ? 'bg-green-500' : (item.qty > 50 ? 'bg-orange-400' : 'bg-red-500');
+            // Stock Status Color Dot
+            const stockColor = item.qty > 50 ? 'bg-green-500' : 'bg-red-500';
 
             card.innerHTML = `
-                <div class="relative h-48 w-full bg-slate-200 overflow-hidden cursor-pointer group" onclick="openModal('${item.image}', '${item.design}')">
-                    <img src="${item.image}" loading="lazy" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
-                    
-                    <div class="absolute top-3 right-3">
-                         <span class="px-2 py-1 rounded-md bg-white/90 backdrop-blur-sm text-[10px] font-bold text-slate-800 shadow-sm border border-white/20">
-                            ${item.crate}
-                         </span>
-                    </div>
-
-                    <div class="absolute bottom-3 left-3 text-white">
-                         <div class="text-[10px] font-medium opacity-90 uppercase tracking-widest">${item.surface}</div>
-                         <div class="text-lg font-bold leading-tight shadow-black drop-shadow-md">${item.design}</div>
-                    </div>
+                <div class="relative h-56 w-full bg-slate-100 overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
+                    <img src="${item.image}" loading="lazy" class="w-full h-full object-cover">
+                    <div class="absolute top-2 right-2 w-2.5 h-2.5 rounded-full ${stockColor} border border-white shadow-sm"></div>
                 </div>
 
-                <div class="p-4">
-                    <div class="flex flex-wrap gap-2 mb-4">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">${item.size}</span>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">${item.body}</span>
+                <div class="p-3">
+                    
+                    <div class="flex justify-between items-start mb-1 gap-3">
+                        <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded whitespace-nowrap h-fit">${item.size}</span>
+                        <span class="text-sm font-bold text-slate-900 text-right leading-tight">${item.design}</span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 border-t border-slate-50 pt-3">
-                        <div class="flex flex-col">
-                            <span class="text-[10px] text-slate-400 font-bold uppercase">Available Boxes</span>
-                            <span class="text-lg font-bold text-slate-800">${item.qty}</span>
-                        </div>
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">${item.surface}</span>
+                        <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">${item.body}</span>
+                    </div>
+
+                    <div class="h-px bg-slate-50 w-full mb-2"></div>
+
+                    <div class="flex justify-between items-start">
+                        <span class="text-xl font-bold text-blue-600 font-mono tracking-tighter">${item.crate}</span>
+
                         <div class="flex flex-col items-end">
-                             <span class="text-[10px] text-slate-400 font-bold uppercase">Status</span>
-                             <div class="flex items-center gap-1.5 mt-1">
-                                <div class="w-2 h-2 rounded-full ${stockColor} animate-pulse"></div>
-                                <span class="text-xs font-bold text-slate-600">${item.qty > 0 ? 'In Stock' : 'Out'}</span>
-                             </div>
+                            <span class="text-[10px] font-bold text-slate-600">${item.sample_size || '-'}</span>
+                            <span class="text-[9px] text-slate-400 mt-0.5">${item.weight ? item.weight + ' kg' : ''}</span>
                         </div>
                     </div>
+
                 </div>
             `;
             grid.appendChild(card);
@@ -247,13 +241,10 @@
 
     function filterBySize(size) {
         activeSize = size;
-        
-        // Update Chip UI
         document.querySelectorAll('.chip').forEach(c => {
             if(c.dataset.size === size) c.classList.add('active');
             else c.classList.remove('active');
         });
-
         applyFilters();
     }
 
@@ -261,7 +252,6 @@
         const clearBtn = document.getElementById('clearSearch');
         if(val.length > 0) clearBtn.classList.remove('hidden');
         else clearBtn.classList.add('hidden');
-        
         applyFilters();
     }
 
@@ -273,24 +263,16 @@
     function applyFilters() {
         const query = document.getElementById('globalSearch').value.trim();
         let data = rawData;
-
-        // 1. Apply Size Filter
         if(activeSize !== 'All') {
             data = data.filter(item => item.size === activeSize);
         }
-
-        // 2. Apply Search Filter
         if(query.length > 0) {
             const results = window.fuse.search(query);
             data = results.map(r => r.item).filter(item => {
-                // Ensure size filter is respected within search results
                 return activeSize === 'All' || item.size === activeSize;
             });
         }
-
         renderCards(data);
-        
-        // UI Feedback
         const filterLabel = document.getElementById('activeFilterLabel');
         if(activeSize !== 'All' || query.length > 0) filterLabel.classList.remove('hidden');
         else filterLabel.classList.add('hidden');
@@ -311,7 +293,6 @@
         document.getElementById('modalImage').src = imgSrc;
         document.getElementById('modalTitle').innerText = title;
         modal.classList.remove('hidden');
-        // Prevent body scroll
         document.body.style.overflow = 'hidden';
     }
 
