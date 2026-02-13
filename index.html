@@ -24,7 +24,7 @@
                         ios: {
                             bg: '#F2F2F7',
                             card: '#FFFFFF',
-                            blue: '#007AFF', // iOS Blue Color
+                            blue: '#007AFF',
                             gray: '#8E8E93',
                             separator: '#C6C6C8'
                         }
@@ -68,24 +68,26 @@
         .rotating { animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        .chip { transition: background-color 0.2s, color 0.2s, border-color 0.2s; }
-        .dropdown-enter { transform: scale(0.95); opacity: 0; pointer-events: none; }
-        .dropdown-active { transform: scale(1); opacity: 1; pointer-events: auto; }
-
-        /* --- NEW SWIPE STYLES --- */
+        /* --- REFINED SWIPE STYLES --- */
         .swipe-reveal-layer {
             position: absolute; top: 0; bottom: 0; right: 0; width: 100%;
             display: flex; justify-content: flex-end; z-index: 0;
         }
         .swipe-action-btn {
-            height: 100%; width: 80px; display: flex; flex-direction: column;
+            height: 100%; width: 85px; display: flex; flex-direction: column;
             align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;
+            transition: background-color 0.3s ease;
         }
         .swipe-top-layer {
-            position: relative; z-index: 10; background: white; transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); /* Apple-like spring */
+            position: relative; z-index: 10; background: white; 
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); /* Smooth Spring Return */
             will-change: transform;
         }
-        .swiping-active { transition: none !important; } /* No transition during drag */
+        .swiping-active { transition: none !important; }
+
+        .chip { transition: background-color 0.2s, color 0.2s, border-color 0.2s; }
+        .dropdown-enter { transform: scale(0.95); opacity: 0; pointer-events: none; }
+        .dropdown-active { transform: scale(1); opacity: 1; pointer-events: auto; }
 
         html { scroll-behavior: smooth; }
     </style>
@@ -217,7 +219,7 @@
     let isPulling = false;
     const PULL_THRESHOLD = 120; 
 
-    // --- NEW SWIPE VARIABLES ---
+    // Swipe Variables
     let swipeStartX = 0;
     let swipeStartY = 0;
     let activeSwipeEl = null;
@@ -251,6 +253,11 @@
             const input = document.getElementById('globalSearch');
             if (document.activeElement === input) { input.blur(); }
             document.getElementById('searchSuggestions').classList.add('hidden');
+            
+            // NEW: Close swipe if user scrolls vertically
+            if (activeSwipeEl && window.getComputedStyle(activeSwipeEl).transform !== 'none') {
+                 closeActiveSwipe();
+            }
         }, { passive: true });
         
         document.addEventListener('click', (e) => {
@@ -268,7 +275,6 @@
                 suggestions.classList.add('hidden');
             }
             
-            // Close active swipe if clicking outside
              if (activeSwipeEl && !e.target.closest('.swipe-top-layer')) {
                 closeActiveSwipe();
             }
@@ -296,8 +302,7 @@
         window.addEventListener('offline', updateNetworkStatus);
         window.addEventListener('online', updateNetworkStatus);
 
-        // Pull to Refresh Listeners
-        document.addEventListener('touchstart', handleTouchStart, {passive: false}); // Changed to false for swipe detection
+        document.addEventListener('touchstart', handleTouchStart, {passive: false});
         document.addEventListener('touchmove', handleTouchMove, {passive: false});
         document.addEventListener('touchend', handleTouchEnd, {passive: true});
 
@@ -336,25 +341,22 @@
         }
     }
 
-    // --- COMBINED TOUCH HANDLING (Pull-to-Refresh + Swipe-to-Copy) ---
+    // --- REFINED TOUCH HANDLING ---
     function handleTouchStart(e) {
-        // Pull to Refresh Logic
         if (window.scrollY === 0) {
             touchStartY = e.touches[0].clientY;
             isPulling = true;
         }
 
-        // Swipe to Copy Logic
         const swipeTarget = e.target.closest('.swipe-top-layer');
         if (swipeTarget) {
-             // Close any other open swipes first
             if (activeSwipeEl && activeSwipeEl !== swipeTarget) {
                 closeActiveSwipe();
             }
             swipeStartX = e.touches[0].clientX;
             swipeStartY = e.touches[0].clientY;
             activeSwipeEl = swipeTarget;
-            activeSwipeEl.classList.add('swiping-active'); // Remove transition during drag
+            activeSwipeEl.classList.add('swiping-active');
             isSwipingHorizontally = false;
         }
     }
@@ -363,7 +365,6 @@
         const y = e.touches[0].clientY;
         const x = e.touches[0].clientX;
         
-        // Pull to Refresh Move
         if (isPulling && window.scrollY <= 0) {
              const pullDistance = y - touchStartY;
              if (pullDistance > 0 && !isSwipingHorizontally) {
@@ -377,30 +378,31 @@
              }
         }
 
-        // Swipe to Copy Move
         if (activeSwipeEl) {
             const deltaX = x - swipeStartX;
             const deltaY = y - swipeStartY;
             
-            // Determine if scrolling or swiping (Smart Lock)
+            // SMART LOCK: Close if vertical scroll starts
+            if (Math.abs(deltaY) > 15 && !isSwipingHorizontally) {
+                closeActiveSwipe();
+                return;
+            }
+
             if (!isSwipingHorizontally && Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
                 isSwipingHorizontally = true;
-                isPulling = false; // Cancel P2R if swiping sideways
+                isPulling = false;
             }
 
             if (isSwipingHorizontally) {
-                if (e.cancelable) e.preventDefault(); // Stop vertical scroll
-                // Only allow left swipe (negative deltaX) with resistance
+                if (e.cancelable) e.preventDefault(); 
                 let translateX = deltaX < 0 ? deltaX * 0.6 : 0; 
-                // Limit how far it can go
-                translateX = Math.max(translateX, -100);
+                translateX = Math.max(translateX, -110);
                 activeSwipeEl.style.transform = `translateX(${translateX}px)`;
             }
         }
     }
 
     function handleTouchEnd(e) {
-        // Pull to Refresh End
         if (isPulling) {
             isPulling = false;
             const ptrContainer = document.getElementById('ptr-container');
@@ -420,52 +422,52 @@
             }
         }
 
-        // Swipe to Copy End
         if (activeSwipeEl) {
-            activeSwipeEl.classList.remove('swiping-active'); // Add transition back
+            activeSwipeEl.classList.remove('swiping-active'); 
             const currentTransform = activeSwipeEl.style.transform;
             const translateX = currentTransform ? parseInt(currentTransform.replace('translateX(', '')) : 0;
             
-            if (translateX < -60) { // Threshold to snap open
-                activeSwipeEl.style.transform = 'translateX(-80px)'; // Snap open
-                if (navigator.vibrate) navigator.vibrate(5); // Haptic on snap
+            if (translateX < -55) { 
+                activeSwipeEl.style.transform = 'translateX(-85px)'; 
+                if (navigator.vibrate) navigator.vibrate(5); 
             } else {
-                closeActiveSwipe(); // Snap closed
+                activeSwipeEl.style.transform = 'translateX(0px)';
+                activeSwipeEl = null;
             }
             isSwipingHorizontally = false;
-            // DO NOT nullify activeSwipeEl here, keep it tracked to close later
         }
     }
 
     function closeActiveSwipe() {
         if (activeSwipeEl) {
+            activeSwipeEl.classList.remove('swiping-active');
             activeSwipeEl.style.transform = 'translateX(0px)';
             activeSwipeEl = null;
         }
     }
 
-    // --- NEW COPY TO CLIPBOARD FUNCTION ---
+    // --- REFINED COPY FUNCTION (Better Feedback) ---
     function copyCardData(btnElement) {
         const dataStr = btnElement.dataset.copyInfo;
         if (!dataStr) return;
 
         navigator.clipboard.writeText(dataStr).then(() => {
-            // Haptic Success
-            if (navigator.vibrate) navigator.vibrate(20);
+            if (navigator.vibrate) navigator.vibrate(25);
             
-            // Visual Feedback (Temporary Icon Change)
+            // Pro Feedback
             const originalHtml = btnElement.innerHTML;
             btnElement.innerHTML = '<i class="fa-solid fa-check text-lg mb-1"></i>Copied!';
-            btnElement.classList.add('bg-green-500');
+            btnElement.classList.replace('bg-ios-blue', 'bg-green-500');
             
+            // Wait 1 second so user sees the message, then close smoothly
             setTimeout(() => {
-                btnElement.innerHTML = originalHtml;
-                btnElement.classList.remove('bg-green-500');
-                closeActiveSwipe(); // Close after copy
-            }, 1500);
-        }).catch(err => {
-            console.error('Failed to copy: ', err);
-             alert('Copy failed. Please try again.');
+                closeActiveSwipe();
+                // Reset button after it's hidden
+                setTimeout(() => {
+                    btnElement.innerHTML = originalHtml;
+                    btnElement.classList.replace('bg-green-500', 'bg-ios-blue');
+                }, 400);
+            }, 1000);
         });
     }
 
@@ -620,10 +622,9 @@
         displayedCount += nextBatch.length;
     }
 
-    // --- UPDATED CARD ELEMENT WITH SWIPE STRUCTURE ---
     function createCardElement(item, query) {
         const el = document.createElement('div');
-        el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden relative group break-inside-avoid mb-3";
+        el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden relative break-inside-avoid mb-3";
         
         const displayDesign = highlightText(item.design, query);
         const displaySurface = highlightText(item.surface, query);
@@ -632,11 +633,6 @@
         const subtext = `${displaySurface} • ${displayBody} • ${item.sample}`;
         let cleanSize = (item.size && item.size.includes('X')) ? `${item.size.split('X')[0]}x${item.size.split('X')[1]}` : item.size;
 
-        const parts = item.crate.split('-');
-        const cratePrefix = parts[0] || ""; 
-        const crateNum = parts[1] || item.crate;
-
-        // Prepare Copy Data
         const copyString = `Design: ${item.design}\nCrate: ${item.crate}\nSize: ${cleanSize}`;
 
         el.innerHTML = `
@@ -644,9 +640,9 @@
                 <img src="${item.image}" loading="lazy" class="w-full h-auto block transition-transform duration-700 group-hover:scale-105">
             </div>
             
-            <div class="relative overflow-hidden h-[65px] bg-ios-blue"> 
+            <div class="relative overflow-hidden h-[65px] bg-slate-100"> 
                 <div class="swipe-reveal-layer">
-                    <button class="swipe-action-btn active:bg-blue-600 transition-colors" 
+                    <button class="swipe-action-btn bg-ios-blue active:opacity-80" 
                             data-copy-info="${copyString}"
                             onclick="copyCardData(this)">
                         <i class="fa-regular fa-copy text-lg mb-1"></i>
@@ -656,24 +652,24 @@
 
                 <div class="swipe-top-layer flex items-stretch h-full bg-white border-t border-slate-50">
                     <div class="w-[72px] flex flex-col items-center justify-center border-r border-slate-50 shrink-0 bg-white">
-                        <span class="text-[11px] font-bold text-slate-400 leading-none mb-0.5">${cratePrefix}</span>
-                        <span class="text-[16px] font-mono font-medium text-slate-700 leading-none tracking-normal">${crateNum}</span>
+                        <span class="text-[11px] font-bold text-slate-400 leading-none mb-0.5">${item.crate.split('-')[0]}</span>
+                        <span class="text-[16px] font-mono font-medium text-slate-700 leading-none">${item.crate.split('-')[1]}</span>
                     </div>
-                    <div class="flex-1 flex flex-col items-center justify-center p-2 text-center">
-                        <div class="flex items-center justify-center gap-2 mb-1.5 w-full flex-wrap px-1">
-                            <span class="text-[12px] font-bold text-slate-800 tracking-[1px] whitespace-nowrap uppercase">${cleanSize}</span>
+                    <div class="flex-1 flex flex-col items-center justify-center p-2 text-center overflow-hidden">
+                        <div class="flex items-center justify-center gap-2 mb-1 w-full flex-wrap">
+                            <span class="text-[12px] font-bold text-slate-800 uppercase">${cleanSize}</span>
                             <span class="text-[10px] text-slate-300">|</span>
-                            <h3 class="text-[12px] font-bold text-slate-900 leading-tight truncate max-w-full tracking-[1.5px] uppercase">
+                            <h3 class="text-[12px] font-bold text-slate-900 truncate tracking-wide uppercase">
                                 ${displayDesign}
                             </h3>
                         </div>
-                        <p class="text-[9px] font-semibold text-slate-400 truncate w-full opacity-90 tracking-[0.15em] uppercase">
+                        <p class="text-[9px] font-semibold text-slate-400 truncate w-full uppercase">
                             ${subtext}
                         </p>
                     </div>
                 </div>
             </div>
-            `;
+        `;
         return el;
     }
 
