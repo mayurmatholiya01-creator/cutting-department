@@ -275,7 +275,7 @@
                 suggestions.classList.add('hidden');
             }
             
-             if (activeSwipeEl && !e.target.closest('.swipe-top-layer')) {
+           if (activeSwipeEl && !e.target.closest('.swipe-top-layer') && !e.target.closest('.swipe-action-btn')) {
                 closeActiveSwipe();
             }
         });
