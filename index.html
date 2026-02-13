@@ -187,15 +187,23 @@
         resetGrid(); 
 
         // --- SMART REORDER TRIGGERS ---
+        
+        // 1. On Scroll
         window.addEventListener('scroll', () => {
             if (isReorderPending) triggerSmartReorder();
         }, { passive: true });
 
+        // 2. On Click Outside Header
         document.addEventListener('click', (e) => {
             const header = document.getElementById('mainHeader');
             if (isReorderPending && !header.contains(e.target)) {
                 triggerSmartReorder();
             }
+        });
+
+        // 3. NEW: On Search Box Click/Focus
+        document.getElementById('globalSearch').addEventListener('focus', () => {
+            if (isReorderPending) triggerSmartReorder();
         });
     }
 
@@ -256,8 +264,7 @@
 
         renderFilters(); 
 
-        // 2. AUTO SCROLL RESET (The Fix)
-        // Scroll the container back to 0 so the active pill is visible
+        // 2. AUTO SCROLL RESET
         document.getElementById('sizeFilterContainer').scrollTo({ left: 0, behavior: 'smooth' });
 
         isReorderPending = false; 
