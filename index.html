@@ -9,7 +9,7 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
     <script>
@@ -333,7 +333,6 @@
         const subtext = `${item.surface} • ${item.body} • ${item.sample}`;
         let cleanSize = (item.size && item.size.includes('X')) ? `${item.size.split('X')[0]}x${item.size.split('X')[1]}` : item.size;
 
-        // Crate Logic
         const parts = item.crate.split('-');
         const cratePrefix = parts[0] || ""; 
         const crateNum = parts[1] || item.crate;
@@ -343,10 +342,12 @@
                 <img src="${item.image}" loading="lazy" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
             </div>
             <div class="flex items-stretch min-h-[65px] bg-white">
-                <div class="w-[65px] flex flex-col items-center justify-center border-r border-slate-100 shrink-0 bg-slate-50/30 gap-0.5">
-                    <span class="text-[13px] font-black text-slate-400 uppercase tracking-tight leading-none">${cratePrefix}</span>
-                    <span class="text-[15px] font-bold text-ios-blue font-mono leading-none tracking-tighter">${crateNum}</span>
+                
+                <div class="w-[72px] flex flex-col items-center justify-center border-r border-slate-100 shrink-0 bg-gray-50/50">
+                    <span class="text-[12px] font-bold text-slate-400 leading-none mb-0.5">${cratePrefix}</span>
+                    <span class="text-[19px] font-black text-slate-900 leading-none tracking-tight">${crateNum}</span>
                 </div>
+
                 <div class="flex-1 flex flex-col items-center justify-center p-2 text-center">
                     <div class="flex items-center justify-center gap-2 mb-1.5 w-full flex-wrap px-1">
                         <span class="text-[12px] font-bold text-slate-800 tracking-[1px] whitespace-nowrap uppercase">${cleanSize}</span>
@@ -363,7 +364,6 @@
         return el;
     }
 
-    // ... Utils and Modal functions remain same ...
     function handleSearch(val) {
         const clearBtn = document.getElementById('clearSearch');
         if(val.length > 0) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden');
