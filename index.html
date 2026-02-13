@@ -22,15 +22,11 @@
                             bg: '#F2F2F7',
                             card: '#FFFFFF',
                             blue: '#007AFF',
-                            gray: '#8E8E93',
-                            separator: '#C6C6C8',
-                            red: '#FF3B30',
-                            green: '#34C759'
+                            gray: '#8E8E93'
                         }
                     },
                     boxShadow: {
-                        'ios': '0 4px 12px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
-                        'float': '0 8px 32px rgba(0, 0, 0, 0.08)'
+                        'ios': '0 4px 12px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)'
                     }
                 }
             }
@@ -46,13 +42,13 @@
         .active-scale:active { transform: scale(0.98); transition: transform 0.1s ease; }
         input[type="text"] { -webkit-appearance: none; margin: 0; }
         
-        /* Smooth transition for pills moving */
-        #sizeFilterContainer button { transition: all 0.3s ease; }
+        /* Transition for pill colors */
+        .chip { transition: background-color 0.2s, color 0.2s, border-color 0.2s; }
     </style>
 </head>
 <body class="pb-24 pt-32">
 
-    <header class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+    <header id="mainHeader" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
         <div class="h-safe-top w-full bg-white/90 backdrop-blur-md"></div>
         
         <div class="glass pb-2 pt-4">
@@ -107,7 +103,7 @@
         </div>
     </div>
 
-    <button onclick="window.scrollTo({top:0, behavior:'smooth'})" class="fixed bottom-6 right-6 w-12 h-12 bg-slate-900/90 backdrop-blur-md text-white rounded-full shadow-float flex items-center justify-center z-40 active-scale border border-white/10">
+    <button onclick="window.scrollTo({top:0, behavior:'smooth'})" class="fixed bottom-6 right-6 w-12 h-12 bg-slate-900/90 backdrop-blur-md text-white rounded-full flex items-center justify-center z-40 active-scale border border-white/10 shadow-lg">
         <i class="fa-solid fa-arrow-up text-lg"></i>
     </button>
 
@@ -136,6 +132,8 @@
     let rawData = [];
     let currentFilteredData = [];
     let activeSize = 'All';
+    let pillOrder = []; // Stores current order of pills
+    let isReorderPending = false; // Flag to check if we need to sort
     
     // INFINITE SCROLL STATE
     let displayedCount = 0;
@@ -162,7 +160,14 @@
 
     function init() {
         generateData();
-        renderFilters();
+        
+        // Initial Pill Order
+        pillOrder = ['All', ...new Set(rawData.map(i => i.size))].sort();
+        // Force 'All' to be first if sort moved it
+        pillOrder = pillOrder.filter(x => x !== 'All');
+        pillOrder.unshift('All');
+
+        renderFilters(); // Initial Render
         
         window.fuse = new Fuse(rawData, { 
             keys: ['design', 'surface', 'body'], 
@@ -181,59 +186,88 @@
 
         currentFilteredData = rawData; 
         resetGrid(); 
+
+        // --- SMART REORDER TRIGGERS ---
+        // 1. On Scroll
+        window.addEventListener('scroll', () => {
+            if (isReorderPending) triggerSmartReorder();
+        }, { passive: true });
+
+        // 2. On Click Outside Header
+        document.addEventListener('click', (e) => {
+            const header = document.getElementById('mainHeader');
+            if (isReorderPending && !header.contains(e.target)) {
+                triggerSmartReorder();
+            }
+        });
     }
 
     // ==========================================
-    // SMART FILTER LOGIC (UPDATED)
+    // SMART FILTER LOGIC (LAZY SORT)
     // ==========================================
+    
+    // Renders the buttons based on the current 'pillOrder' array
     function renderFilters() {
-        // 1. Get all unique sizes
-        let allSizes = [...new Set(rawData.map(i => i.size))].sort();
-
-        // 2. SMART REORDER: 
-        // If a specific filter is active, remove it from list and put it at the top (after 'All')
-        if (activeSize !== 'All') {
-            allSizes = allSizes.filter(s => s !== activeSize); // Remove active
-            allSizes.unshift(activeSize); // Add to front
-        }
-
-        // 3. 'All' must always be the very first
-        allSizes.unshift('All');
-
         const container = document.getElementById('sizeFilterContainer');
         
-        // 4. Render Buttons
-        container.innerHTML = allSizes.map(size => {
+        container.innerHTML = pillOrder.map(size => {
             const isSelected = size === activeSize;
-            // Clean size text for display
             let displaySize = size === 'All' ? 'All' : `${size.split('X')[0]}x${size.split('X')[1]}`;
             
+            // Standard Styling
+            const baseClass = "chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border";
+            const activeClass = "bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-200";
+            const inactiveClass = "bg-white text-slate-600 border-slate-200";
+
             return `
-            <button onclick="filterBySize('${size}')" 
-                class="chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border ${isSelected ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-200' : 'bg-white text-slate-600 border-slate-200'}"
+            <button id="btn-${size.replace(/\s/g, '')}" onclick="filterBySize('${size}')" 
+                class="${baseClass} ${isSelected ? activeClass : inactiveClass}"
                 data-size="${size}">
                 ${displaySize}
             </button>
         `}).join('');
-        
-        // 5. Scroll container to start to show the active pill clearly
-        // container.scrollLeft = 0; // Optional: Force scroll to start
     }
 
+    // Triggered when user clicks a pill
     function filterBySize(size) {
-        // TOGGLE LOGIC: 
-        // If clicking the currently active size (and it's not 'All'), deselect it (go back to All)
+        // Toggle Logic
         if (activeSize === size && size !== 'All') {
             activeSize = 'All';
         } else {
             activeSize = size;
         }
 
-        // Re-render filters (This triggers the Reorder logic in renderFilters)
-        renderFilters();
-        
-        // Run the query to update grid
+        // VISUAL UPDATE ONLY (Instant Feedback)
+        // We do NOT re-render the list order here to prevent jumping
+        document.querySelectorAll('.chip').forEach(btn => {
+            const btnSize = btn.dataset.size;
+            if (btnSize === activeSize) {
+                // Make Active
+                btn.className = "chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-200";
+            } else {
+                // Make Inactive
+                btn.className = "chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border bg-white text-slate-600 border-slate-200";
+            }
+        });
+
+        // Set flag: "We need to reorder this list later"
+        if (activeSize !== 'All') {
+            isReorderPending = true;
+        }
+
         runQuery();
+    }
+
+    // Called by Scroll or Outside Click to finally move the pill
+    function triggerSmartReorder() {
+        if (!isReorderPending || activeSize === 'All') return;
+
+        // Create new order: All -> Active -> Rest
+        const others = pillOrder.filter(s => s !== 'All' && s !== activeSize);
+        pillOrder = ['All', activeSize, ...others];
+
+        renderFilters(); // Re-draw with new order
+        isReorderPending = false; // Reset flag
     }
 
     // ==========================================
@@ -333,7 +367,14 @@
     }
 
     function resetFilters() {
-        clearSearch(); filterBySize('All');
+        activeSize = 'All';
+        pillOrder = pillOrder.sort(); // Reset order to default alphabetical
+        // Keep All first
+        pillOrder = pillOrder.filter(x => x !== 'All');
+        pillOrder.unshift('All');
+        
+        renderFilters();
+        clearSearch(); 
         document.getElementById('sizeFilterContainer').scrollLeft = 0;
     }
 
