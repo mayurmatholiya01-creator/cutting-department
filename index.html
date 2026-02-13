@@ -22,11 +22,13 @@
                             bg: '#F2F2F7',
                             card: '#FFFFFF',
                             blue: '#007AFF',
-                            gray: '#8E8E93'
+                            gray: '#8E8E93',
+                            separator: '#C6C6C8'
                         }
                     },
                     boxShadow: {
-                        'ios': '0 4px 12px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)'
+                        'ios': '0 4px 12px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
+                        'menu': '0 10px 40px rgba(0, 0, 0, 0.2)'
                     }
                 }
             }
@@ -38,15 +40,19 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .glass { background: rgba(255, 255, 255, 0.90); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 0.5px solid rgba(0,0,0,0.05); }
+        .glass-menu { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); }
         .glass-dark { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
         .active-scale:active { transform: scale(0.98); transition: transform 0.1s ease; }
         input[type="text"] { -webkit-appearance: none; margin: 0; }
         
-        /* Transition for pill colors */
         .chip { transition: background-color 0.2s, color 0.2s, border-color 0.2s; }
+        
+        /* Dropdown Animation */
+        .dropdown-enter { transform: scale(0.95); opacity: 0; pointer-events: none; }
+        .dropdown-active { transform: scale(1); opacity: 1; pointer-events: auto; }
     </style>
 </head>
-<body class="pb-24 pt-32">
+<body class="pb-24 pt-44">
 
     <header id="mainHeader" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
         <div class="h-safe-top w-full bg-white/90 backdrop-blur-md"></div>
@@ -70,9 +76,28 @@
             <div class="mt-3 pl-4 pr-2 overflow-x-auto no-scrollbar flex gap-2.5 pb-2 scroll-smooth" id="sizeFilterContainer"></div>
         </div>
 
-        <div class="bg-white/50 backdrop-blur-sm border-b border-slate-200/50 px-5 py-1.5 flex justify-between items-center text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
-            <span>Result: <span id="showingCount" class="text-slate-900">0</span> Units</span>
-            <span id="activeFilterLabel" class="text-ios-blue hidden opacity-0 transition-opacity duration-300">Filter Active</span>
+        <div class="bg-white/50 backdrop-blur-sm border-b border-slate-200/50 px-5 py-2 flex justify-between items-center relative z-20">
+            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+                Result: <span id="showingCount" class="text-slate-900">0</span> Units
+            </span>
+
+            <div class="relative">
+                <button onclick="toggleSortMenu()" class="flex items-center gap-1.5 text-ios-blue active:opacity-50 transition-opacity">
+                    <span class="text-[12px] font-semibold">Sort</span>
+                    <i class="fa-solid fa-arrow-up-wide-short text-[12px]"></i>
+                </button>
+
+                <div id="sortMenu" class="absolute right-0 top-8 w-48 glass-menu rounded-xl shadow-menu border border-white/20 origin-top-right transition-all duration-200 dropdown-enter flex flex-col overflow-hidden z-50">
+                    <button onclick="applySort('crate')" class="text-left px-4 py-3 text-[13px] font-medium text-slate-800 border-b border-gray-100 hover:bg-gray-50 active:bg-gray-100 flex justify-between items-center group">
+                        By Crate No.
+                        <i id="check-crate" class="fa-solid fa-check text-ios-blue opacity-0 group-[.active]:opacity-100"></i>
+                    </button>
+                    <button onclick="applySort('design')" class="text-left px-4 py-3 text-[13px] font-medium text-slate-800 hover:bg-gray-50 active:bg-gray-100 flex justify-between items-center group">
+                        By Design Name
+                        <i id="check-design" class="fa-solid fa-check text-ios-blue opacity-0 group-[.active]:opacity-100"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -134,6 +159,7 @@
     let activeSize = 'All';
     let pillOrder = []; 
     let isReorderPending = false; 
+    let currentSort = 'crate'; // Default Sort
     
     // INFINITE SCROLL STATE
     let displayedCount = 0;
@@ -142,13 +168,14 @@
     let observer;
 
     function generateData() {
+        // Randomly shuffle designs to test sorting later
         rawData = Array.from({length: 100}, (_, i) => ({
             id: i,
             design: DATA_CONFIG.designs[i % DATA_CONFIG.designs.length], 
             size: DATA_CONFIG.sizes[i % DATA_CONFIG.sizes.length],
             surface: DATA_CONFIG.surfaces[i % DATA_CONFIG.surfaces.length],
             body: DATA_CONFIG.bodies[i % DATA_CONFIG.bodies.length],
-            crate: `C-${String(i + 1).padStart(2, '0')}`,
+            crate: `C-${String(Math.floor(Math.random() * 100) + 1).padStart(2, '0')}`, // Random Crate for testing sort
             sample: DATA_CONFIG.sample,
             image: DATA_CONFIG.images[i % DATA_CONFIG.images.length]
         }));
@@ -183,32 +210,74 @@
             });
         }, { rootMargin: '100px' });
 
-        currentFilteredData = rawData; 
-        resetGrid(); 
-
-        // --- SMART REORDER TRIGGERS ---
-        
-        // 1. On Scroll
-        window.addEventListener('scroll', () => {
-            if (isReorderPending) triggerSmartReorder();
-        }, { passive: true });
-
-        // 2. On Click Outside Header
+        // Click Outside to Close Sort Menu
         document.addEventListener('click', (e) => {
-            const header = document.getElementById('mainHeader');
-            if (isReorderPending && !header.contains(e.target)) {
-                triggerSmartReorder();
+            const menu = document.getElementById('sortMenu');
+            const btn = document.querySelector('button[onclick="toggleSortMenu()"]');
+            if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.remove('dropdown-active');
+                menu.classList.add('dropdown-enter');
             }
         });
 
-        // 3. NEW: On Search Box Click/Focus
-        document.getElementById('globalSearch').addEventListener('focus', () => {
-            if (isReorderPending) triggerSmartReorder();
+        // Smart Filter Listeners
+        window.addEventListener('scroll', () => { if (isReorderPending) triggerSmartReorder(); }, { passive: true });
+        document.addEventListener('click', (e) => {
+            const header = document.getElementById('mainHeader');
+            if (isReorderPending && !header.contains(e.target)) triggerSmartReorder();
         });
+        document.getElementById('globalSearch').addEventListener('focus', () => { if (isReorderPending) triggerSmartReorder(); });
+
+        // Initial Sort & Render
+        applySort('crate');
     }
 
     // ==========================================
-    // SMART FILTER LOGIC (LAZY SORT + AUTO SCROLL)
+    // 3. SORTING LOGIC (NEW)
+    // ==========================================
+    function toggleSortMenu() {
+        const menu = document.getElementById('sortMenu');
+        if (menu.classList.contains('dropdown-active')) {
+            menu.classList.remove('dropdown-active');
+            menu.classList.add('dropdown-enter');
+        } else {
+            menu.classList.remove('dropdown-enter');
+            menu.classList.add('dropdown-active');
+        }
+    }
+
+    function applySort(type) {
+        currentSort = type;
+        
+        // Visual Update in Menu
+        document.getElementById('check-crate').style.opacity = type === 'crate' ? '1' : '0';
+        document.getElementById('check-design').style.opacity = type === 'design' ? '1' : '0';
+
+        // Close Menu
+        document.getElementById('sortMenu').classList.remove('dropdown-active');
+        document.getElementById('sortMenu').classList.add('dropdown-enter');
+
+        // Apply Logic
+        runQuery(); 
+    }
+
+    function sortData(data) {
+        if (currentSort === 'crate') {
+            // Sort by Crate (C-01, C-02...)
+            return data.sort((a, b) => {
+                const numA = parseInt(a.crate.replace('C-', ''));
+                const numB = parseInt(b.crate.replace('C-', ''));
+                return numA - numB;
+            });
+        } else if (currentSort === 'design') {
+            // Sort by Design Name (A-Z)
+            return data.sort((a, b) => a.design.localeCompare(b.design));
+        }
+        return data;
+    }
+
+    // ==========================================
+    // 4. SMART FILTER LOGIC
     // ==========================================
     
     function renderFilters() {
@@ -217,62 +286,57 @@
         container.innerHTML = pillOrder.map(size => {
             const isSelected = size === activeSize;
             let displaySize = size === 'All' ? 'All' : `${size.split('X')[0]}x${size.split('X')[1]}`;
-            
             const baseClass = "chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border";
             const activeClass = "bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-200";
             const inactiveClass = "bg-white text-slate-600 border-slate-200";
 
-            return `
-            <button id="btn-${size.replace(/\s/g, '')}" onclick="filterBySize('${size}')" 
-                class="${baseClass} ${isSelected ? activeClass : inactiveClass}"
-                data-size="${size}">
-                ${displaySize}
-            </button>
-        `}).join('');
+            return `<button onclick="filterBySize('${size}')" class="${baseClass} ${isSelected ? activeClass : inactiveClass}" data-size="${size}">${displaySize}</button>`;
+        }).join('');
     }
 
     function filterBySize(size) {
-        if (activeSize === size && size !== 'All') {
-            activeSize = 'All';
-        } else {
-            activeSize = size;
-        }
-
-        // VISUAL UPDATE ONLY
+        activeSize = (activeSize === size && size !== 'All') ? 'All' : size;
+        
         document.querySelectorAll('.chip').forEach(btn => {
             const btnSize = btn.dataset.size;
-            if (btnSize === activeSize) {
-                btn.className = "chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-200";
-            } else {
-                btn.className = "chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border bg-white text-slate-600 border-slate-200";
-            }
+            btn.className = `chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border ${btnSize === activeSize ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-200' : 'bg-white text-slate-600 border-slate-200'}`;
         });
 
-        if (activeSize !== 'All') {
-            isReorderPending = true;
-        }
-
+        if (activeSize !== 'All') isReorderPending = true;
         runQuery();
     }
 
     function triggerSmartReorder() {
         if (!isReorderPending || activeSize === 'All') return;
-
-        // 1. Reorder Logic
         const others = pillOrder.filter(s => s !== 'All' && s !== activeSize);
         pillOrder = ['All', activeSize, ...others];
-
         renderFilters(); 
-
-        // 2. AUTO SCROLL RESET
         document.getElementById('sizeFilterContainer').scrollTo({ left: 0, behavior: 'smooth' });
-
         isReorderPending = false; 
     }
 
     // ==========================================
-    // 3. RENDERING ENGINE
+    // 5. RENDERING ENGINE
     // ==========================================
+
+    function runQuery() {
+        const query = document.getElementById('globalSearch').value.trim();
+        let results = rawData; // Start fresh
+
+        // 1. Filter
+        if (activeSize !== 'All') results = results.filter(i => i.size === activeSize);
+        if (query.length > 0) {
+            const fuseResult = window.fuse.search(query);
+            results = fuseResult.map(r => r.item).filter(i => activeSize === 'All' || i.size === activeSize);
+        }
+
+        // 2. Sort (Apply the current sort logic)
+        results = sortData(results);
+
+        // 3. Update State
+        currentFilteredData = results;
+        resetGrid();
+    }
 
     function resetGrid() {
         const grid = document.getElementById('cardGrid');
@@ -296,21 +360,17 @@
 
     function loadMoreData() {
         if (displayedCount >= currentFilteredData.length) return;
-
         const grid = document.getElementById('cardGrid');
         const fragment = document.createDocumentFragment();
-        
         const nextBatch = currentFilteredData.slice(displayedCount, displayedCount + BATCH_SIZE);
         
         nextBatch.forEach((item, index) => {
             const el = createCardElement(item);
             fragment.appendChild(el);
-
             if (index === BATCH_SIZE - TRIGGER_OFFSET && displayedCount + BATCH_SIZE < currentFilteredData.length) {
                 observer.observe(el);
             }
         });
-
         grid.appendChild(fragment);
         displayedCount += nextBatch.length;
     }
@@ -318,21 +378,13 @@
     function createCardElement(item) {
         const el = document.createElement('div');
         el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden active-scale relative group";
-        
         const subtext = `${item.surface} • ${item.body} • ${item.sample}`;
-        
-        let cleanSize = "N/A";
-        if(item.size && item.size.includes('X')) {
-            cleanSize = `${item.size.split('X')[0]}x${item.size.split('X')[1]}`;
-        } else if (item.size) {
-            cleanSize = item.size;
-        }
+        let cleanSize = (item.size && item.size.includes('X')) ? `${item.size.split('X')[0]}x${item.size.split('X')[1]}` : item.size;
 
         el.innerHTML = `
             <div class="relative h-44 bg-slate-50 overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
                 <img src="${item.image}" loading="lazy" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
             </div>
-
             <div class="flex items-stretch min-h-[60px] bg-white">
                 <div class="w-[60px] flex flex-col items-center justify-center border-r border-slate-100 shrink-0 bg-slate-50/30">
                     <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Crate</span>
@@ -352,58 +404,23 @@
     }
 
     // ==========================================
-    // 4. LOGIC CONTROLLERS
+    // 6. SEARCH & UTILS
     // ==========================================
-    
     function handleSearch(val) {
         const clearBtn = document.getElementById('clearSearch');
         if(val.length > 0) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden');
         runQuery();
     }
-
     function clearSearch() {
         const input = document.getElementById('globalSearch');
         input.value = ''; input.focus(); handleSearch('');
     }
-
     function resetFilters() {
         activeSize = 'All';
-        pillOrder = pillOrder.sort(); 
-        pillOrder = pillOrder.filter(x => x !== 'All');
-        pillOrder.unshift('All');
-        
-        renderFilters();
-        clearSearch(); 
+        pillOrder = pillOrder.sort(); pillOrder = pillOrder.filter(x => x !== 'All'); pillOrder.unshift('All');
+        renderFilters(); clearSearch(); 
         document.getElementById('sizeFilterContainer').scrollLeft = 0;
     }
-
-    function runQuery() {
-        const query = document.getElementById('globalSearch').value.trim();
-        let results = rawData;
-
-        if (activeSize !== 'All') { 
-            results = results.filter(i => i.size === activeSize); 
-        }
-
-        if (query.length > 0) {
-            const fuseResult = window.fuse.search(query);
-            results = fuseResult.map(r => r.item).filter(i => activeSize === 'All' || i.size === activeSize);
-        }
-
-        const filterLbl = document.getElementById('activeFilterLabel');
-        if(activeSize !== 'All' || query.length > 0) {
-            filterLbl.classList.remove('hidden'); setTimeout(() => filterLbl.classList.remove('opacity-0'), 10);
-        } else {
-            filterLbl.classList.add('opacity-0'); setTimeout(() => filterLbl.classList.add('hidden'), 300);
-        }
-
-        currentFilteredData = results;
-        resetGrid();
-    }
-
-    // ==========================================
-    // 5. ANIMATIONS & MODAL
-    // ==========================================
     function openModal(src, title) {
         const modal = document.getElementById('imageModal');
         const content = document.getElementById('modalContent');
