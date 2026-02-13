@@ -184,6 +184,13 @@
         pillOrder = pillOrder.filter(x => x !== 'All'); pillOrder.unshift('All');
         renderFilters(); 
         window.fuse = new Fuse(rawData, { keys: ['design', 'surface', 'body'], threshold: 0.35, ignoreLocation: true });
+window.addEventListener('scroll', () => {
+            const input = document.getElementById('globalSearch');
+            // Agar user input mein type kar raha tha aur scroll kiya
+            if (document.activeElement === input) {
+                input.blur(); // Keyboard ko forcefuly band kar do
+            }
+        });
         
         document.addEventListener('click', (e) => {
             const wrapper = document.querySelector('.group');
