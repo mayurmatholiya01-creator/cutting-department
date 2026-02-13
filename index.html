@@ -41,14 +41,12 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .glass { background: rgba(255, 255, 255, 0.90); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 0.5px solid rgba(0,0,0,0.05); }
-        .glass-menu { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); } /* 98% opacity for pro rich look */
+        .glass-menu { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); }
         .glass-dark { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
         .active-scale:active { transform: scale(0.98); transition: transform 0.1s ease; }
         input[type="text"] { -webkit-appearance: none; margin: 0; }
         
         .chip { transition: background-color 0.2s, color 0.2s, border-color 0.2s; }
-        
-        /* Dropdown Animation */
         .dropdown-enter { transform: scale(0.95); opacity: 0; pointer-events: none; }
         .dropdown-active { transform: scale(1); opacity: 1; pointer-events: auto; }
     </style>
@@ -60,26 +58,20 @@
         <div class="h-safe-top w-full bg-white/90 backdrop-blur-md"></div>
         
         <div class="glass pb-2 pt-4 relative z-30">
-            
             <div class="px-4 relative z-50">
                 <div class="relative group">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <i class="fa-solid fa-magnifying-glass text-slate-400 text-sm"></i>
                     </div>
-                    
                     <input type="text" id="globalSearch" autocomplete="off"
                         class="block w-full pl-9 pr-3 py-3 rounded-xl bg-slate-100/80 border-none text-slate-900 placeholder-slate-400 focus:ring-0 focus:bg-white focus:shadow-ios transition-all text-[15px] font-medium"
                         placeholder="Search Design, Surface, Body..." oninput="handleSearchInput(this.value)">
-                    
                     <button id="clearSearch" class="absolute inset-y-0 right-0 pr-3 flex items-center hidden" onclick="clearSearch()">
                         <i class="fa-solid fa-circle-xmark text-slate-300 text-lg"></i>
                     </button>
                 </div>
-
-                <div id="searchSuggestions" class="absolute top-full left-4 right-4 mt-2 bg-white rounded-2xl shadow-rich border border-gray-100 overflow-hidden hidden transition-all duration-200 origin-top">
-                    </div>
+                <div id="searchSuggestions" class="absolute top-full left-4 right-4 mt-2 bg-white rounded-2xl shadow-rich border border-gray-100 overflow-hidden hidden transition-all duration-200 origin-top"></div>
             </div>
-
             <div class="mt-3 pl-4 pr-2 overflow-x-auto no-scrollbar flex gap-2.5 pb-2 scroll-smooth" id="sizeFilterContainer"></div>
         </div>
 
@@ -87,21 +79,17 @@
             <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
                 Result: <span id="showingCount" class="text-slate-900">0</span> Units
             </span>
-
             <div class="relative">
                 <button onclick="toggleSortMenu()" class="flex items-center gap-1.5 text-ios-blue active:opacity-50 transition-opacity">
                     <span class="text-[12px] font-semibold">Sort</span>
                     <i class="fa-solid fa-arrow-up-wide-short text-[12px]"></i>
                 </button>
-
                 <div id="sortMenu" class="absolute right-0 top-8 w-48 glass-menu rounded-xl shadow-menu border border-white/20 origin-top-right transition-all duration-200 dropdown-enter flex flex-col overflow-hidden z-50">
                     <button onclick="applySort('crate')" class="text-left px-4 py-3 text-[13px] font-medium text-slate-800 border-b border-gray-100 hover:bg-gray-50 active:bg-gray-100 flex justify-between items-center group">
-                        By Crate No.
-                        <i id="check-crate" class="fa-solid fa-check text-ios-blue opacity-0 group-[.active]:opacity-100"></i>
+                        By Crate No. <i id="check-crate" class="fa-solid fa-check text-ios-blue opacity-0 group-[.active]:opacity-100"></i>
                     </button>
                     <button onclick="applySort('design')" class="text-left px-4 py-3 text-[13px] font-medium text-slate-800 hover:bg-gray-50 active:bg-gray-100 flex justify-between items-center group">
-                        By Design Name
-                        <i id="check-design" class="fa-solid fa-check text-ios-blue opacity-0 group-[.active]:opacity-100"></i>
+                        By Design Name <i id="check-design" class="fa-solid fa-check text-ios-blue opacity-0 group-[.active]:opacity-100"></i>
                     </button>
                 </div>
             </div>
@@ -141,7 +129,7 @@
 
 <script>
     // ==========================================
-    // 1. DATA CONFIG (MOCK DATA)
+    // 1. DATA CONFIG (Test Data Updated for New Crates)
     // ==========================================
     const DATA_CONFIG = {
         images: [
@@ -158,7 +146,8 @@
         bodies: ["REGULAR", "DARK GREY", "BROWN", "ASH GREY", "ZED BLACK", "BLACK", "GREY BODY", "L-90 WHITE"],
         surfaces: ["GRAVEL", "ILLUSION", "METTALIC", "SAHARA", "SHAPE TECH", "SOFT SATIN"],
         designs: ["LINEA STONECREMA", "PIETRA DI VALS SCURO", "RESIN MIRAG SAND", "RESIN MIRAG SCURO", "SPARKEL NERO", "PIZZARA SLATE", "LIMON STONE TAUPE", "CARARA FREDO"],
-        sample: "105X205"
+        sample: "105X205",
+        prefixes: ["A", "D", "SF", "X"] // For testing
     };
 
     let rawData = [];
@@ -173,52 +162,41 @@
     let observer;
 
     function generateData() {
-        rawData = Array.from({length: 100}, (_, i) => ({
-            id: i,
-            design: DATA_CONFIG.designs[i % DATA_CONFIG.designs.length], 
-            size: DATA_CONFIG.sizes[i % DATA_CONFIG.sizes.length],
-            surface: DATA_CONFIG.surfaces[i % DATA_CONFIG.surfaces.length],
-            body: DATA_CONFIG.bodies[i % DATA_CONFIG.bodies.length],
-            crate: `C-${String(Math.floor(Math.random() * 100) + 1).padStart(2, '0')}`,
-            sample: DATA_CONFIG.sample,
-            image: DATA_CONFIG.images[i % DATA_CONFIG.images.length]
-        }));
+        rawData = Array.from({length: 100}, (_, i) => {
+            // Random Crate Generator: A-001, SF-306 etc.
+            const prefix = DATA_CONFIG.prefixes[Math.floor(Math.random() * DATA_CONFIG.prefixes.length)];
+            const num = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
+            return {
+                id: i,
+                design: DATA_CONFIG.designs[i % DATA_CONFIG.designs.length], 
+                size: DATA_CONFIG.sizes[i % DATA_CONFIG.sizes.length],
+                surface: DATA_CONFIG.surfaces[i % DATA_CONFIG.surfaces.length],
+                body: DATA_CONFIG.bodies[i % DATA_CONFIG.bodies.length],
+                crate: `${prefix}-${num}`, // e.g. SF-306
+                sample: DATA_CONFIG.sample,
+                image: DATA_CONFIG.images[i % DATA_CONFIG.images.length]
+            };
+        });
     }
-
-    // ==========================================
-    // 2. INITIALIZATION
-    // ==========================================
 
     function init() {
         generateData();
-        
         pillOrder = ['All', ...new Set(rawData.map(i => i.size))].sort();
-        pillOrder = pillOrder.filter(x => x !== 'All');
-        pillOrder.unshift('All');
+        pillOrder = pillOrder.filter(x => x !== 'All'); pillOrder.unshift('All');
         renderFilters(); 
+        window.fuse = new Fuse(rawData, { keys: ['design', 'surface', 'body'], threshold: 0.35, ignoreLocation: true });
         
-        // Search & Suggestion Config
-        window.fuse = new Fuse(rawData, { 
-            keys: ['design', 'surface', 'body'], 
-            threshold: 0.35, 
-            ignoreLocation: true 
-        });
-
-        // Close Suggestion Box on Outside Click
         document.addEventListener('click', (e) => {
-            const wrapper = document.querySelector('.group'); // Input container
+            const wrapper = document.querySelector('.group');
             const suggestions = document.getElementById('searchSuggestions');
-            if (!wrapper.contains(e.target) && !suggestions.contains(e.target)) {
+            if (wrapper && suggestions && !wrapper.contains(e.target) && !suggestions.contains(e.target)) {
                 suggestions.classList.add('hidden');
             }
         });
 
         observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    loadMoreData(); 
-                    observer.unobserve(entry.target);
-                }
+                if (entry.isIntersecting) { loadMoreData(); observer.unobserve(entry.target); }
             });
         }, { rootMargin: '100px' });
 
@@ -240,33 +218,13 @@
         applySort('crate');
     }
 
-    // ==========================================
-    // 3. SMART SUGGESTIONS (NEW LOGIC)
-    // ==========================================
     function handleSearchInput(val) {
-        handleSearch(val); // Trigger normal search
-        
+        handleSearch(val);
         const suggestionsBox = document.getElementById('searchSuggestions');
-        
-        // 1. If empty, hide suggestions
-        if (val.trim().length === 0) {
-            suggestionsBox.classList.add('hidden');
-            return;
-        }
-
-        // 2. Filter Unique Designs that match input
+        if (val.trim().length === 0) { suggestionsBox.classList.add('hidden'); return; }
         const uniqueDesigns = [...new Set(rawData.map(item => item.design))];
-        const matches = uniqueDesigns.filter(design => 
-            design.toLowerCase().includes(val.toLowerCase())
-        ).slice(0, 5); // Limit to top 5
-
-        // 3. If no matches, hide
-        if (matches.length === 0) {
-            suggestionsBox.classList.add('hidden');
-            return;
-        }
-
-        // 4. Render Apple-Style Suggestions
+        const matches = uniqueDesigns.filter(design => design.toLowerCase().includes(val.toLowerCase())).slice(0, 5);
+        if (matches.length === 0) { suggestionsBox.classList.add('hidden'); return; }
         suggestionsBox.innerHTML = matches.map(design => `
             <div onclick="selectSuggestion('${design}')" 
                 class="px-4 py-3.5 flex items-center justify-between border-b border-gray-100 last:border-0 active:bg-gray-50 transition-colors cursor-pointer group">
@@ -274,7 +232,6 @@
                 <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-gray-300 group-hover:text-ios-blue"></i>
             </div>
         `).join('');
-
         suggestionsBox.classList.remove('hidden');
     }
 
@@ -282,23 +239,14 @@
         const input = document.getElementById('globalSearch');
         input.value = designName;
         document.getElementById('searchSuggestions').classList.add('hidden');
-        handleSearch(designName); // Trigger Search
-        input.blur(); // Remove focus to hide keyboard (optional)
-        
-        // Ensure pill reorder logic works if needed
+        handleSearch(designName); input.blur();
         if (isReorderPending) triggerSmartReorder();
     }
 
-    // ==========================================
-    // 4. SORTING LOGIC
-    // ==========================================
     function toggleSortMenu() {
         const menu = document.getElementById('sortMenu');
-        if (menu.classList.contains('dropdown-active')) {
-            menu.classList.remove('dropdown-active'); menu.classList.add('dropdown-enter');
-        } else {
-            menu.classList.remove('dropdown-enter'); menu.classList.add('dropdown-active');
-        }
+        if (menu.classList.contains('dropdown-active')) { menu.classList.remove('dropdown-active'); menu.classList.add('dropdown-enter'); } 
+        else { menu.classList.remove('dropdown-enter'); menu.classList.add('dropdown-active'); }
     }
     function applySort(type) {
         currentSort = type;
@@ -310,16 +258,18 @@
     }
     function sortData(data) {
         if (currentSort === 'crate') {
-            return data.sort((a, b) => parseInt(a.crate.replace('C-', '')) - parseInt(b.crate.replace('C-', '')));
+            return data.sort((a, b) => {
+                // Split Logic for sorting (A-001 vs SF-306)
+                // We sort by Number first, if number is same, then Prefix? Usually simple alpha-numeric string sort is fine for mixed.
+                // But let's try strict alphanumeric:
+                return a.crate.localeCompare(b.crate, undefined, { numeric: true, sensitivity: 'base' });
+            });
         } else if (currentSort === 'design') {
             return data.sort((a, b) => a.design.localeCompare(b.design));
         }
         return data;
     }
 
-    // ==========================================
-    // 5. SMART FILTER LOGIC
-    // ==========================================
     function renderFilters() {
         const container = document.getElementById('sizeFilterContainer');
         container.innerHTML = pillOrder.map(size => {
@@ -349,9 +299,6 @@
         isReorderPending = false; 
     }
 
-    // ==========================================
-    // 6. RENDERING ENGINE
-    // ==========================================
     function runQuery() {
         const query = document.getElementById('globalSearch').value.trim();
         let results = rawData; 
@@ -387,35 +334,51 @@
         grid.appendChild(fragment);
         displayedCount += nextBatch.length;
     }
+
     function createCardElement(item) {
         const el = document.createElement('div');
         el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden active-scale relative group";
+        
+        // 1. Spaced Out Subtext (Premium Look)
         const subtext = `${item.surface} • ${item.body} • ${item.sample}`;
+        
         let cleanSize = (item.size && item.size.includes('X')) ? `${item.size.split('X')[0]}x${item.size.split('X')[1]}` : item.size;
+
+        // 2. CRATE SPLIT LOGIC
+        // Expects: "SF-306" or "A-001"
+        const parts = item.crate.split('-');
+        const cratePrefix = parts[0] || ""; // SF
+        const crateNum = parts[1] || item.crate; // 306
+
         el.innerHTML = `
             <div class="relative h-44 bg-slate-50 overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
                 <img src="${item.image}" loading="lazy" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
             </div>
-            <div class="flex items-stretch min-h-[60px] bg-white">
-                <div class="w-[60px] flex flex-col items-center justify-center border-r border-slate-100 shrink-0 bg-slate-50/30">
-                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Crate</span>
-                    <span class="text-lg font-bold text-ios-blue font-mono leading-none mt-0.5">${item.crate.replace('C-', '')}</span>
+            <div class="flex items-stretch min-h-[65px] bg-white">
+                
+                <div class="w-[65px] flex flex-col items-center justify-center border-r border-slate-100 shrink-0 bg-slate-50/30 gap-0.5">
+                    <span class="text-[13px] font-black text-slate-400 uppercase tracking-tight leading-none">${cratePrefix}</span>
+                    <span class="text-[15px] font-bold text-ios-blue font-mono leading-none tracking-tighter">${crateNum}</span>
                 </div>
+
                 <div class="flex-1 flex flex-col items-center justify-center p-2 text-center">
-                    <div class="flex items-center justify-center gap-1.5 mb-1 w-full flex-wrap px-1">
-                        <span class="text-[13px] font-bold text-slate-800 tracking-wide whitespace-nowrap">${cleanSize}</span>
-                        <span class="text-[12px] text-slate-300">|</span>
-                        <h3 class="text-[13px] font-bold text-slate-900 leading-tight truncate max-w-full tracking-wide">${item.design}</h3>
+                    <div class="flex items-center justify-center gap-2 mb-1.5 w-full flex-wrap px-1">
+                        <span class="text-[12px] font-bold text-slate-800 tracking-widest whitespace-nowrap uppercase">${cleanSize}</span>
+                        
+                        <span class="text-[10px] text-slate-300">|</span>
+                        
+                        <h3 class="text-[12px] font-bold text-slate-900 leading-tight truncate max-w-full tracking-wide uppercase">
+                            ${item.design}
+                        </h3>
                     </div>
-                    <p class="text-[9px] font-medium text-slate-400 truncate w-full opacity-90 tracking-wider">${subtext}</p>
+                    <p class="text-[9px] font-semibold text-slate-400 truncate w-full opacity-90 tracking-[0.15em] uppercase">
+                        ${subtext}
+                    </p>
                 </div>
             </div>`;
         return el;
     }
 
-    // ==========================================
-    // 7. UTILS
-    // ==========================================
     function handleSearch(val) {
         const clearBtn = document.getElementById('clearSearch');
         if(val.length > 0) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden');
@@ -423,8 +386,7 @@
     }
     function clearSearch() {
         const input = document.getElementById('globalSearch');
-        input.value = ''; input.focus(); 
-        document.getElementById('searchSuggestions').classList.add('hidden');
+        input.value = ''; input.focus(); document.getElementById('searchSuggestions').classList.add('hidden');
         handleSearch('');
     }
     function resetFilters() {
