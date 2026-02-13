@@ -62,7 +62,6 @@
         .dropdown-enter { transform: scale(0.95); opacity: 0; pointer-events: none; }
         .dropdown-active { transform: scale(1); opacity: 1; pointer-events: auto; }
         
-        /* Smooth Scrolling */
         html { scroll-behavior: smooth; }
     </style>
 </head>
@@ -142,7 +141,6 @@
     </button>
 
 <script>
-    // Config
     const DATA_CONFIG = {
         images: [
             "https://images.unsplash.com/photo-1620121474603-33c5c8d55590?ixlib=rb-4.0.3&w=800&q=80",
@@ -174,7 +172,6 @@
     const TRIGGER_OFFSET = 2; 
     let observer;
 
-    // Helper: Haptic Feedback
     function triggerHaptic() {
         if (navigator.vibrate) navigator.vibrate(10);
     }
@@ -203,20 +200,15 @@
         renderFilters(); 
         window.fuse = new Fuse(rawData, { keys: ['design', 'surface', 'body'], threshold: 0.35, ignoreLocation: true });
         
-        // --- KEY UX FIXES ---
-        
-        // 1. Scroll Dismiss (Keyboard & Suggestions)
+        // 1. Scroll Logic (Clean)
         window.addEventListener('scroll', () => {
             const input = document.getElementById('globalSearch');
-            // If typing, hide keyboard
-            if (document.activeElement === input) {
-                input.blur(); 
-            }
-            // Always hide suggestions on scroll
+            if (document.activeElement === input) { input.blur(); }
             document.getElementById('searchSuggestions').classList.add('hidden');
+            if (isReorderPending) triggerSmartReorder(); // Scroll Trigger for Reorder
         }, { passive: true });
         
-        // 2. Click Outside Dismiss
+        // 2. Click Outside Suggestion Dismiss
         document.addEventListener('click', (e) => {
             const wrapper = document.querySelector('.group');
             const suggestions = document.getElementById('searchSuggestions');
@@ -241,14 +233,19 @@
             }
         });
 
-        // 5. Smart Reorder Triggers
-        window.addEventListener('scroll', () => { if (isReorderPending) triggerSmartReorder(); }, { passive: true });
+        // 5. Smart Reorder Triggers (FIXED)
+        // Header par click karne se tabhi reorder hoga jab click filter pill par NA ho
         document.getElementById('mainHeader').addEventListener('click', (e) => {
+             // Logic: Agar click 'chip' (pill) par hua hai, to abhi reorder mat karo.
+             // Reorder tab karo jab user kahi aur touch kare.
+             if (e.target.closest('.chip')) return; 
+             
              if (isReorderPending) triggerSmartReorder();
         });
+
+        // Search focus par bhi reorder
         document.getElementById('globalSearch').addEventListener('focus', () => { 
             if (isReorderPending) triggerSmartReorder(); 
-            // Re-show suggestions if value exists on focus
             if(document.getElementById('globalSearch').value.length > 0) {
                 handleSearchInput(document.getElementById('globalSearch').value);
             }
@@ -260,15 +257,11 @@
     function handleSearchInput(val) {
         isUserSorted = false; 
         handleSearch(val);
-        
         const suggestionsBox = document.getElementById('searchSuggestions');
         if (val.trim().length === 0) { suggestionsBox.classList.add('hidden'); return; }
-        
         const uniqueDesigns = [...new Set(rawData.map(item => item.design))];
         const matches = uniqueDesigns.filter(design => design.toLowerCase().includes(val.toLowerCase())).slice(0, 5);
-        
         if (matches.length === 0) { suggestionsBox.classList.add('hidden'); return; }
-        
         suggestionsBox.innerHTML = matches.map(design => `
             <div onclick="selectSuggestion('${design}')" 
                 class="px-4 py-3.5 flex items-center justify-between border-b border-gray-100 last:border-0 active:bg-gray-50 transition-colors cursor-pointer group">
@@ -284,10 +277,8 @@
         const input = document.getElementById('globalSearch');
         input.value = designName;
         document.getElementById('searchSuggestions').classList.add('hidden');
-        
         isUserSorted = false; 
         handleSearch(designName); 
-        
         input.blur();
         if (isReorderPending) triggerSmartReorder();
     }
@@ -303,7 +294,6 @@
         triggerHaptic();
         currentSort = type;
         isUserSorted = true; 
-        
         document.getElementById('check-crate').style.opacity = type === 'crate' ? '1' : '0';
         document.getElementById('check-design').style.opacity = type === 'design' ? '1' : '0';
         document.getElementById('sortMenu').classList.remove('dropdown-active');
@@ -355,20 +345,12 @@
     function runQuery() {
         const query = document.getElementById('globalSearch').value.trim();
         let results = rawData; 
-        
         if (activeSize !== 'All') results = results.filter(i => i.size === activeSize);
-        
         if (query.length > 0) {
             const fuseResult = window.fuse.search(query);
             results = fuseResult.map(r => r.item).filter(i => activeSize === 'All' || i.size === activeSize);
-            
-            if (isUserSorted) {
-                results = sortData(results);
-            }
-        } else {
-            results = sortData(results);
-        }
-        
+            if (isUserSorted) { results = sortData(results); }
+        } else { results = sortData(results); }
         currentFilteredData = results;
         resetGrid();
     }
@@ -409,10 +391,9 @@
         const cratePrefix = parts[0] || ""; 
         const crateNum = parts[1] || item.crate;
 
-        // SKELETON LOADING LOGIC ADDED HERE
         el.innerHTML = `
             <div class="relative w-full h-auto overflow-hidden cursor-pointer bg-gray-50" onclick="openModal('${item.image}', '${item.design}')">
-                <div class="absolute inset-0 bg-gray-200 animate-pulse skeleton-loader z-0"></div>
+                <div class="absolute inset-0 bg-gray-200 animate-pulse z-0"></div>
                 <img src="${item.image}" loading="lazy" class="w-full h-auto block transition-opacity duration-500 opacity-0 relative z-10 group-hover:scale-105 transform transition-transform" onload="this.classList.remove('opacity-0'); this.previousElementSibling.remove()">
             </div>
             <div class="flex items-stretch min-h-[65px] bg-white border-t border-slate-50">
@@ -437,29 +418,10 @@
     }
 
     function handleSearch(val) { const clearBtn = document.getElementById('clearSearch'); if(val.length > 0) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden'); runQuery(); }
-    
-    function clearSearch() { 
-        triggerHaptic();
-        const input = document.getElementById('globalSearch'); 
-        input.value = ''; input.focus(); 
-        document.getElementById('searchSuggestions').classList.add('hidden'); 
-        isUserSorted = false; 
-        handleSearch(''); 
-    }
-    
-    function resetFilters() { 
-        triggerHaptic();
-        activeSize = 'All'; pillOrder = pillOrder.sort(); pillOrder = pillOrder.filter(x => x !== 'All'); pillOrder.unshift('All'); isUserSorted = false; renderFilters(); clearSearch(); document.getElementById('sizeFilterContainer').scrollLeft = 0; 
-    }
-    
-    function openModal(src, title) { 
-        triggerHaptic();
-        const modal = document.getElementById('imageModal'); const content = document.getElementById('modalContent'); document.getElementById('modalImage').src = src; document.getElementById('modalTitle').innerText = title; modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); content.classList.add('scale-100'); }, 10); document.body.style.overflow = 'hidden'; 
-    }
-    
-    function closeModal() { 
-        const modal = document.getElementById('imageModal'); const content = document.getElementById('modalContent'); modal.classList.add('opacity-0'); content.classList.remove('scale-100'); content.classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); document.body.style.overflow = ''; }, 300); 
-    }
+    function clearSearch() { triggerHaptic(); const input = document.getElementById('globalSearch'); input.value = ''; input.focus(); document.getElementById('searchSuggestions').classList.add('hidden'); isUserSorted = false; handleSearch(''); }
+    function resetFilters() { triggerHaptic(); activeSize = 'All'; pillOrder = pillOrder.sort(); pillOrder = pillOrder.filter(x => x !== 'All'); pillOrder.unshift('All'); isUserSorted = false; renderFilters(); clearSearch(); document.getElementById('sizeFilterContainer').scrollLeft = 0; }
+    function openModal(src, title) { triggerHaptic(); const modal = document.getElementById('imageModal'); const content = document.getElementById('modalContent'); document.getElementById('modalImage').src = src; document.getElementById('modalTitle').innerText = title; modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); content.classList.add('scale-100'); }, 10); document.body.style.overflow = 'hidden'; }
+    function closeModal() { const modal = document.getElementById('imageModal'); const content = document.getElementById('modalContent'); modal.classList.add('opacity-0'); content.classList.remove('scale-100'); content.classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); document.body.style.overflow = ''; }, 300); }
 
     init();
 </script>
