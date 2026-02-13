@@ -33,6 +33,15 @@
                         'ios': '0 4px 12px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
                         'menu': '0 10px 40px rgba(0, 0, 0, 0.2)',
                         'rich': '0 20px 40px -10px rgba(0, 0, 0, 0.15)' 
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        }
                     }
                 }
             }
@@ -52,6 +61,9 @@
         .chip { transition: background-color 0.2s, color 0.2s, border-color 0.2s; }
         .dropdown-enter { transform: scale(0.95); opacity: 0; pointer-events: none; }
         .dropdown-active { transform: scale(1); opacity: 1; pointer-events: auto; }
+        
+        /* Smooth Scrolling */
+        html { scroll-behavior: smooth; }
     </style>
 </head>
 
@@ -73,7 +85,7 @@
                         <i class="fa-solid fa-circle-xmark text-slate-300 text-lg"></i>
                     </button>
                 </div>
-                <div id="searchSuggestions" class="absolute top-full left-4 right-4 mt-2 bg-white rounded-2xl shadow-rich border border-gray-100 overflow-hidden hidden transition-all duration-200 origin-top"></div>
+                <div id="searchSuggestions" class="absolute top-full left-4 right-4 mt-2 bg-white/95 backdrop-blur-xl rounded-2xl shadow-rich border border-gray-100/50 overflow-hidden hidden transition-all duration-200 origin-top z-50"></div>
             </div>
             <div class="mt-3 pl-4 pr-2 overflow-x-auto no-scrollbar flex gap-2.5 pb-2 scroll-smooth" id="sizeFilterContainer"></div>
         </div>
@@ -118,8 +130,8 @@
             <i class="fa-solid fa-xmark text-lg"></i>
         </button>
         <div class="relative w-full max-w-md bg-transparent rounded-2xl overflow-hidden shadow-2xl transition-transform duration-300 scale-95" id="modalContent" onclick="event.stopPropagation()">
-            <img id="modalImage" src="" class="w-full h-auto object-cover bg-white">
-            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 pt-16 pb-8">
+            <img id="modalImage" src="" class="w-full h-auto object-cover bg-white rounded-2xl">
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 pt-16 pb-8 rounded-b-2xl">
                 <h3 id="modalTitle" class="text-white text-2xl font-bold shadow-black drop-shadow-md text-center tracking-wide">Design Name</h3>
             </div>
         </div>
@@ -130,6 +142,7 @@
     </button>
 
 <script>
+    // Config
     const DATA_CONFIG = {
         images: [
             "https://images.unsplash.com/photo-1620121474603-33c5c8d55590?ixlib=rb-4.0.3&w=800&q=80",
@@ -155,11 +168,16 @@
     let pillOrder = []; 
     let isReorderPending = false; 
     let currentSort = 'crate'; 
-    let isUserSorted = false; // NEW FLAG: Tracks if user manually clicked sort
+    let isUserSorted = false; 
     let displayedCount = 0;
     const BATCH_SIZE = 10;
     const TRIGGER_OFFSET = 2; 
     let observer;
+
+    // Helper: Haptic Feedback
+    function triggerHaptic() {
+        if (navigator.vibrate) navigator.vibrate(10);
+    }
 
     function generateData() {
         rawData = Array.from({length: 100}, (_, i) => {
@@ -184,14 +202,21 @@
         pillOrder = pillOrder.filter(x => x !== 'All'); pillOrder.unshift('All');
         renderFilters(); 
         window.fuse = new Fuse(rawData, { keys: ['design', 'surface', 'body'], threshold: 0.35, ignoreLocation: true });
-window.addEventListener('scroll', () => {
-            const input = document.getElementById('globalSearch');
-            // Agar user input mein type kar raha tha aur scroll kiya
-            if (document.activeElement === input) {
-                input.blur(); // Keyboard ko forcefuly band kar do
-            }
-        });
         
+        // --- KEY UX FIXES ---
+        
+        // 1. Scroll Dismiss (Keyboard & Suggestions)
+        window.addEventListener('scroll', () => {
+            const input = document.getElementById('globalSearch');
+            // If typing, hide keyboard
+            if (document.activeElement === input) {
+                input.blur(); 
+            }
+            // Always hide suggestions on scroll
+            document.getElementById('searchSuggestions').classList.add('hidden');
+        }, { passive: true });
+        
+        // 2. Click Outside Dismiss
         document.addEventListener('click', (e) => {
             const wrapper = document.querySelector('.group');
             const suggestions = document.getElementById('searchSuggestions');
@@ -200,12 +225,14 @@ window.addEventListener('scroll', () => {
             }
         });
 
+        // 3. Infinite Scroll
         observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) { loadMoreData(); observer.unobserve(entry.target); }
             });
         }, { rootMargin: '100px' });
 
+        // 4. Sort Menu Dismiss
         document.addEventListener('click', (e) => {
             const menu = document.getElementById('sortMenu');
             const btn = document.querySelector('button[onclick="toggleSortMenu()"]');
@@ -214,26 +241,34 @@ window.addEventListener('scroll', () => {
             }
         });
 
+        // 5. Smart Reorder Triggers
         window.addEventListener('scroll', () => { if (isReorderPending) triggerSmartReorder(); }, { passive: true });
-        document.addEventListener('click', (e) => {
-            const header = document.getElementById('mainHeader');
-            if (isReorderPending && !header.contains(e.target)) triggerSmartReorder();
+        document.getElementById('mainHeader').addEventListener('click', (e) => {
+             if (isReorderPending) triggerSmartReorder();
         });
-        document.getElementById('globalSearch').addEventListener('focus', () => { if (isReorderPending) triggerSmartReorder(); });
+        document.getElementById('globalSearch').addEventListener('focus', () => { 
+            if (isReorderPending) triggerSmartReorder(); 
+            // Re-show suggestions if value exists on focus
+            if(document.getElementById('globalSearch').value.length > 0) {
+                handleSearchInput(document.getElementById('globalSearch').value);
+            }
+        });
 
         applySort('crate');
     }
 
     function handleSearchInput(val) {
-        // RESET Manual Sort when user starts typing (Relevance Mode)
         isUserSorted = false; 
-        
         handleSearch(val);
+        
         const suggestionsBox = document.getElementById('searchSuggestions');
         if (val.trim().length === 0) { suggestionsBox.classList.add('hidden'); return; }
+        
         const uniqueDesigns = [...new Set(rawData.map(item => item.design))];
         const matches = uniqueDesigns.filter(design => design.toLowerCase().includes(val.toLowerCase())).slice(0, 5);
+        
         if (matches.length === 0) { suggestionsBox.classList.add('hidden'); return; }
+        
         suggestionsBox.innerHTML = matches.map(design => `
             <div onclick="selectSuggestion('${design}')" 
                 class="px-4 py-3.5 flex items-center justify-between border-b border-gray-100 last:border-0 active:bg-gray-50 transition-colors cursor-pointer group">
@@ -245,11 +280,12 @@ window.addEventListener('scroll', () => {
     }
 
     function selectSuggestion(designName) {
+        triggerHaptic();
         const input = document.getElementById('globalSearch');
         input.value = designName;
         document.getElementById('searchSuggestions').classList.add('hidden');
         
-        isUserSorted = false; // Reset sort to prioritize exact match
+        isUserSorted = false; 
         handleSearch(designName); 
         
         input.blur();
@@ -257,14 +293,16 @@ window.addEventListener('scroll', () => {
     }
 
     function toggleSortMenu() {
+        triggerHaptic();
         const menu = document.getElementById('sortMenu');
         if (menu.classList.contains('dropdown-active')) { menu.classList.remove('dropdown-active'); menu.classList.add('dropdown-enter'); } 
         else { menu.classList.remove('dropdown-enter'); menu.classList.add('dropdown-active'); }
     }
     
     function applySort(type) {
+        triggerHaptic();
         currentSort = type;
-        isUserSorted = true; // MARK: User explicitly requested a sort
+        isUserSorted = true; 
         
         document.getElementById('check-crate').style.opacity = type === 'crate' ? '1' : '0';
         document.getElementById('check-design').style.opacity = type === 'design' ? '1' : '0';
@@ -293,7 +331,9 @@ window.addEventListener('scroll', () => {
             return `<button onclick="filterBySize('${size}')" class="${baseClass} ${isSelected ? activeClass : inactiveClass}" data-size="${size}">${displaySize}</button>`;
         }).join('');
     }
+    
     function filterBySize(size) {
+        triggerHaptic();
         activeSize = (activeSize === size && size !== 'All') ? 'All' : size;
         document.querySelectorAll('.chip').forEach(btn => {
             const btnSize = btn.dataset.size;
@@ -302,6 +342,7 @@ window.addEventListener('scroll', () => {
         if (activeSize !== 'All') isReorderPending = true;
         runQuery();
     }
+    
     function triggerSmartReorder() {
         if (!isReorderPending || activeSize === 'All') return;
         const others = pillOrder.filter(s => s !== 'All' && s !== activeSize);
@@ -311,26 +352,20 @@ window.addEventListener('scroll', () => {
         isReorderPending = false; 
     }
 
-    // --- FIX: UPDATED QUERY LOGIC (Smart Sort) ---
     function runQuery() {
         const query = document.getElementById('globalSearch').value.trim();
         let results = rawData; 
         
-        // 1. Size Filter
         if (activeSize !== 'All') results = results.filter(i => i.size === activeSize);
         
-        // 2. Search & Sort
         if (query.length > 0) {
             const fuseResult = window.fuse.search(query);
             results = fuseResult.map(r => r.item).filter(i => activeSize === 'All' || i.size === activeSize);
             
-            // LOGIC: Only apply sort if user explicitly asked for it (isUserSorted).
-            // Otherwise, let Fuse (Relevance) decide the order.
             if (isUserSorted) {
                 results = sortData(results);
             }
         } else {
-            // No Search = Always Sort
             results = sortData(results);
         }
         
@@ -348,6 +383,7 @@ window.addEventListener('scroll', () => {
         noRes.classList.add('hidden'); noRes.classList.remove('flex');
         loadMoreData(); 
     }
+
     function loadMoreData() {
         if (displayedCount >= currentFilteredData.length) return;
         const grid = document.getElementById('cardGrid');
@@ -373,9 +409,11 @@ window.addEventListener('scroll', () => {
         const cratePrefix = parts[0] || ""; 
         const crateNum = parts[1] || item.crate;
 
+        // SKELETON LOADING LOGIC ADDED HERE
         el.innerHTML = `
-            <div class="relative w-full h-auto overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
-                <img src="${item.image}" loading="lazy" class="w-full h-auto block transition-transform duration-700 group-hover:scale-105">
+            <div class="relative w-full h-auto overflow-hidden cursor-pointer bg-gray-50" onclick="openModal('${item.image}', '${item.design}')">
+                <div class="absolute inset-0 bg-gray-200 animate-pulse skeleton-loader z-0"></div>
+                <img src="${item.image}" loading="lazy" class="w-full h-auto block transition-opacity duration-500 opacity-0 relative z-10 group-hover:scale-105 transform transition-transform" onload="this.classList.remove('opacity-0'); this.previousElementSibling.remove()">
             </div>
             <div class="flex items-stretch min-h-[65px] bg-white border-t border-slate-50">
                 <div class="w-[72px] flex flex-col items-center justify-center border-r border-slate-50 shrink-0 bg-white">
@@ -399,10 +437,29 @@ window.addEventListener('scroll', () => {
     }
 
     function handleSearch(val) { const clearBtn = document.getElementById('clearSearch'); if(val.length > 0) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden'); runQuery(); }
-    function clearSearch() { const input = document.getElementById('globalSearch'); input.value = ''; input.focus(); document.getElementById('searchSuggestions').classList.add('hidden'); isUserSorted = false; handleSearch(''); }
-    function resetFilters() { activeSize = 'All'; pillOrder = pillOrder.sort(); pillOrder = pillOrder.filter(x => x !== 'All'); pillOrder.unshift('All'); isUserSorted = false; renderFilters(); clearSearch(); document.getElementById('sizeFilterContainer').scrollLeft = 0; }
-    function openModal(src, title) { const modal = document.getElementById('imageModal'); const content = document.getElementById('modalContent'); document.getElementById('modalImage').src = src; document.getElementById('modalTitle').innerText = title; modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); content.classList.add('scale-100'); }, 10); document.body.style.overflow = 'hidden'; }
-    function closeModal() { const modal = document.getElementById('imageModal'); const content = document.getElementById('modalContent'); modal.classList.add('opacity-0'); content.classList.remove('scale-100'); content.classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); document.body.style.overflow = ''; }, 300); }
+    
+    function clearSearch() { 
+        triggerHaptic();
+        const input = document.getElementById('globalSearch'); 
+        input.value = ''; input.focus(); 
+        document.getElementById('searchSuggestions').classList.add('hidden'); 
+        isUserSorted = false; 
+        handleSearch(''); 
+    }
+    
+    function resetFilters() { 
+        triggerHaptic();
+        activeSize = 'All'; pillOrder = pillOrder.sort(); pillOrder = pillOrder.filter(x => x !== 'All'); pillOrder.unshift('All'); isUserSorted = false; renderFilters(); clearSearch(); document.getElementById('sizeFilterContainer').scrollLeft = 0; 
+    }
+    
+    function openModal(src, title) { 
+        triggerHaptic();
+        const modal = document.getElementById('imageModal'); const content = document.getElementById('modalContent'); document.getElementById('modalImage').src = src; document.getElementById('modalTitle').innerText = title; modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); content.classList.add('scale-100'); }, 10); document.body.style.overflow = 'hidden'; 
+    }
+    
+    function closeModal() { 
+        const modal = document.getElementById('imageModal'); const content = document.getElementById('modalContent'); modal.classList.add('opacity-0'); content.classList.remove('scale-100'); content.classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); document.body.style.overflow = ''; }, 300); 
+    }
 
     init();
 </script>
