@@ -447,31 +447,30 @@
     }
 
 // --- REFINED COPY FUNCTION (Fix for 1 sec delay) ---
-function copyCardData(btnElement) {
+function copyCardData(btnElement, event) { // 1. yahan 'event' add kiya
+    if (event) event.stopPropagation();    // 2. Event ko rok diya taaki wo document tak na pahuche
+
     const dataStr = btnElement.dataset.copyInfo;
     if (!dataStr) return;
 
     navigator.clipboard.writeText(dataStr).then(() => {
-        // 1. Haptic Feedback (Vibration)
         if (navigator.vibrate) navigator.vibrate(25);
         
-        // 2. Button ka rang badal kar Green karein aur "Copied!" likhein
         const originalHtml = btnElement.innerHTML;
+        // Button Green karein
         btnElement.innerHTML = '<i class="fa-solid fa-check text-lg mb-1"></i>Copied!';
         btnElement.classList.replace('bg-ios-blue', 'bg-green-500');
         
-        // 3. 1 Second ka wait karein taaki staff ko "Copied!" dikhe
+        // 1 Second ka wait
         setTimeout(() => {
-            // Ab card ko makkhan ki tarah band karein
-            closeActiveSwipe();
+            closeActiveSwipe(); // Ab ye shanti se band karega
             
-            // 4. Jab card poori tarah band ho jaye (400ms baad), tab button ko wapas normal karein
             setTimeout(() => {
                 btnElement.innerHTML = originalHtml;
                 btnElement.classList.replace('bg-green-500', 'bg-ios-blue');
             }, 400);
             
-        }, 1000); // Yeh raha wo 1 second (1000ms) ka delay
+        }, 1000); 
     });
 }
 
@@ -648,7 +647,7 @@ function copyCardData(btnElement) {
                 <div class="swipe-reveal-layer">
                     <button class="swipe-action-btn bg-ios-blue active:opacity-80" 
                             data-copy-info="${copyString}"
-                            onclick="copyCardData(this)">
+                            onclick="copyCardData(this, event)">
                         <i class="fa-regular fa-copy text-lg mb-1"></i>
                         Copy
                     </button>
