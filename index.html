@@ -28,7 +28,8 @@
                     },
                     boxShadow: {
                         'ios': '0 4px 12px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
-                        'menu': '0 10px 40px rgba(0, 0, 0, 0.2)'
+                        'menu': '0 10px 40px rgba(0, 0, 0, 0.2)',
+                        'rich': '0 20px 40px -10px rgba(0, 0, 0, 0.15)' 
                     }
                 }
             }
@@ -40,7 +41,7 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .glass { background: rgba(255, 255, 255, 0.90); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 0.5px solid rgba(0,0,0,0.05); }
-        .glass-menu { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); }
+        .glass-menu { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); } /* 98% opacity for pro rich look */
         .glass-dark { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
         .active-scale:active { transform: scale(0.98); transition: transform 0.1s ease; }
         input[type="text"] { -webkit-appearance: none; margin: 0; }
@@ -52,6 +53,7 @@
         .dropdown-active { transform: scale(1); opacity: 1; pointer-events: auto; }
     </style>
 </head>
+
 <body class="pb-24 pt-40">
 
     <header id="mainHeader" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
@@ -59,18 +61,23 @@
         
         <div class="glass pb-2 pt-4">
             
-            <div class="px-4">
+            <div class="px-4 relative z-50">
                 <div class="relative group">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <i class="fa-solid fa-magnifying-glass text-slate-400 text-sm"></i>
                     </div>
-                    <input type="text" id="globalSearch" 
+                    
+                    <input type="text" id="globalSearch" autocomplete="off"
                         class="block w-full pl-9 pr-3 py-3 rounded-xl bg-slate-100/80 border-none text-slate-900 placeholder-slate-400 focus:ring-0 focus:bg-white focus:shadow-ios transition-all text-[15px] font-medium"
-                        placeholder="Search Design, Surface, Body..." oninput="handleSearch(this.value)">
+                        placeholder="Search Design, Surface, Body..." oninput="handleSearchInput(this.value)">
+                    
                     <button id="clearSearch" class="absolute inset-y-0 right-0 pr-3 flex items-center hidden" onclick="clearSearch()">
                         <i class="fa-solid fa-circle-xmark text-slate-300 text-lg"></i>
                     </button>
                 </div>
+
+                <div id="searchSuggestions" class="absolute top-full left-4 right-4 mt-2 bg-white rounded-2xl shadow-rich border border-gray-100 overflow-hidden hidden transition-all duration-200 origin-top">
+                    </div>
             </div>
 
             <div class="mt-3 pl-4 pr-2 overflow-x-auto no-scrollbar flex gap-2.5 pb-2 scroll-smooth" id="sizeFilterContainer"></div>
@@ -159,23 +166,20 @@
     let activeSize = 'All';
     let pillOrder = []; 
     let isReorderPending = false; 
-    let currentSort = 'crate'; // Default Sort
-    
-    // INFINITE SCROLL STATE
+    let currentSort = 'crate'; 
     let displayedCount = 0;
     const BATCH_SIZE = 10;
     const TRIGGER_OFFSET = 2; 
     let observer;
 
     function generateData() {
-        // Randomly shuffle designs to test sorting later
         rawData = Array.from({length: 100}, (_, i) => ({
             id: i,
             design: DATA_CONFIG.designs[i % DATA_CONFIG.designs.length], 
             size: DATA_CONFIG.sizes[i % DATA_CONFIG.sizes.length],
             surface: DATA_CONFIG.surfaces[i % DATA_CONFIG.surfaces.length],
             body: DATA_CONFIG.bodies[i % DATA_CONFIG.bodies.length],
-            crate: `C-${String(Math.floor(Math.random() * 100) + 1).padStart(2, '0')}`, // Random Crate for testing sort
+            crate: `C-${String(Math.floor(Math.random() * 100) + 1).padStart(2, '0')}`,
             sample: DATA_CONFIG.sample,
             image: DATA_CONFIG.images[i % DATA_CONFIG.images.length]
         }));
@@ -188,17 +192,25 @@
     function init() {
         generateData();
         
-        // Initial Pill Order
         pillOrder = ['All', ...new Set(rawData.map(i => i.size))].sort();
         pillOrder = pillOrder.filter(x => x !== 'All');
         pillOrder.unshift('All');
-
         renderFilters(); 
         
+        // Search & Suggestion Config
         window.fuse = new Fuse(rawData, { 
             keys: ['design', 'surface', 'body'], 
             threshold: 0.35, 
             ignoreLocation: true 
+        });
+
+        // Close Suggestion Box on Outside Click
+        document.addEventListener('click', (e) => {
+            const wrapper = document.querySelector('.group'); // Input container
+            const suggestions = document.getElementById('searchSuggestions');
+            if (!wrapper.contains(e.target) && !suggestions.contains(e.target)) {
+                suggestions.classList.add('hidden');
+            }
         });
 
         observer = new IntersectionObserver((entries) => {
@@ -210,17 +222,14 @@
             });
         }, { rootMargin: '100px' });
 
-        // Click Outside to Close Sort Menu
         document.addEventListener('click', (e) => {
             const menu = document.getElementById('sortMenu');
             const btn = document.querySelector('button[onclick="toggleSortMenu()"]');
-            if (!menu.contains(e.target) && !btn.contains(e.target)) {
-                menu.classList.remove('dropdown-active');
-                menu.classList.add('dropdown-enter');
+            if (menu && !menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.remove('dropdown-active'); menu.classList.add('dropdown-enter');
             }
         });
 
-        // Smart Filter Listeners
         window.addEventListener('scroll', () => { if (isReorderPending) triggerSmartReorder(); }, { passive: true });
         document.addEventListener('click', (e) => {
             const header = document.getElementById('mainHeader');
@@ -228,84 +237,109 @@
         });
         document.getElementById('globalSearch').addEventListener('focus', () => { if (isReorderPending) triggerSmartReorder(); });
 
-        // Initial Sort & Render
         applySort('crate');
     }
 
     // ==========================================
-    // 3. SORTING LOGIC (NEW)
+    // 3. SMART SUGGESTIONS (NEW LOGIC)
+    // ==========================================
+    function handleSearchInput(val) {
+        handleSearch(val); // Trigger normal search
+        
+        const suggestionsBox = document.getElementById('searchSuggestions');
+        
+        // 1. If empty, hide suggestions
+        if (val.trim().length === 0) {
+            suggestionsBox.classList.add('hidden');
+            return;
+        }
+
+        // 2. Filter Unique Designs that match input
+        const uniqueDesigns = [...new Set(rawData.map(item => item.design))];
+        const matches = uniqueDesigns.filter(design => 
+            design.toLowerCase().includes(val.toLowerCase())
+        ).slice(0, 5); // Limit to top 5
+
+        // 3. If no matches, hide
+        if (matches.length === 0) {
+            suggestionsBox.classList.add('hidden');
+            return;
+        }
+
+        // 4. Render Apple-Style Suggestions
+        suggestionsBox.innerHTML = matches.map(design => `
+            <div onclick="selectSuggestion('${design}')" 
+                class="px-4 py-3.5 flex items-center justify-between border-b border-gray-100 last:border-0 active:bg-gray-50 transition-colors cursor-pointer group">
+                <span class="text-[14px] font-medium text-slate-700 group-hover:text-ios-blue">${design}</span>
+                <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-gray-300 group-hover:text-ios-blue"></i>
+            </div>
+        `).join('');
+
+        suggestionsBox.classList.remove('hidden');
+    }
+
+    function selectSuggestion(designName) {
+        const input = document.getElementById('globalSearch');
+        input.value = designName;
+        document.getElementById('searchSuggestions').classList.add('hidden');
+        handleSearch(designName); // Trigger Search
+        input.blur(); // Remove focus to hide keyboard (optional)
+        
+        // Ensure pill reorder logic works if needed
+        if (isReorderPending) triggerSmartReorder();
+    }
+
+    // ==========================================
+    // 4. SORTING LOGIC
     // ==========================================
     function toggleSortMenu() {
         const menu = document.getElementById('sortMenu');
         if (menu.classList.contains('dropdown-active')) {
-            menu.classList.remove('dropdown-active');
-            menu.classList.add('dropdown-enter');
+            menu.classList.remove('dropdown-active'); menu.classList.add('dropdown-enter');
         } else {
-            menu.classList.remove('dropdown-enter');
-            menu.classList.add('dropdown-active');
+            menu.classList.remove('dropdown-enter'); menu.classList.add('dropdown-active');
         }
     }
-
     function applySort(type) {
         currentSort = type;
-        
-        // Visual Update in Menu
         document.getElementById('check-crate').style.opacity = type === 'crate' ? '1' : '0';
         document.getElementById('check-design').style.opacity = type === 'design' ? '1' : '0';
-
-        // Close Menu
         document.getElementById('sortMenu').classList.remove('dropdown-active');
         document.getElementById('sortMenu').classList.add('dropdown-enter');
-
-        // Apply Logic
         runQuery(); 
     }
-
     function sortData(data) {
         if (currentSort === 'crate') {
-            // Sort by Crate (C-01, C-02...)
-            return data.sort((a, b) => {
-                const numA = parseInt(a.crate.replace('C-', ''));
-                const numB = parseInt(b.crate.replace('C-', ''));
-                return numA - numB;
-            });
+            return data.sort((a, b) => parseInt(a.crate.replace('C-', '')) - parseInt(b.crate.replace('C-', '')));
         } else if (currentSort === 'design') {
-            // Sort by Design Name (A-Z)
             return data.sort((a, b) => a.design.localeCompare(b.design));
         }
         return data;
     }
 
     // ==========================================
-    // 4. SMART FILTER LOGIC
+    // 5. SMART FILTER LOGIC
     // ==========================================
-    
     function renderFilters() {
         const container = document.getElementById('sizeFilterContainer');
-        
         container.innerHTML = pillOrder.map(size => {
             const isSelected = size === activeSize;
             let displaySize = size === 'All' ? 'All' : `${size.split('X')[0]}x${size.split('X')[1]}`;
             const baseClass = "chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border";
             const activeClass = "bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-200";
             const inactiveClass = "bg-white text-slate-600 border-slate-200";
-
             return `<button onclick="filterBySize('${size}')" class="${baseClass} ${isSelected ? activeClass : inactiveClass}" data-size="${size}">${displaySize}</button>`;
         }).join('');
     }
-
     function filterBySize(size) {
         activeSize = (activeSize === size && size !== 'All') ? 'All' : size;
-        
         document.querySelectorAll('.chip').forEach(btn => {
             const btnSize = btn.dataset.size;
             btn.className = `chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border ${btnSize === activeSize ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-200' : 'bg-white text-slate-600 border-slate-200'}`;
         });
-
         if (activeSize !== 'All') isReorderPending = true;
         runQuery();
     }
-
     function triggerSmartReorder() {
         if (!isReorderPending || activeSize === 'All') return;
         const others = pillOrder.filter(s => s !== 'All' && s !== activeSize);
@@ -316,71 +350,48 @@
     }
 
     // ==========================================
-    // 5. RENDERING ENGINE
+    // 6. RENDERING ENGINE
     // ==========================================
-
     function runQuery() {
         const query = document.getElementById('globalSearch').value.trim();
-        let results = rawData; // Start fresh
-
-        // 1. Filter
+        let results = rawData; 
         if (activeSize !== 'All') results = results.filter(i => i.size === activeSize);
         if (query.length > 0) {
             const fuseResult = window.fuse.search(query);
             results = fuseResult.map(r => r.item).filter(i => activeSize === 'All' || i.size === activeSize);
         }
-
-        // 2. Sort (Apply the current sort logic)
         results = sortData(results);
-
-        // 3. Update State
         currentFilteredData = results;
         resetGrid();
     }
-
     function resetGrid() {
         const grid = document.getElementById('cardGrid');
         const countEl = document.getElementById('showingCount');
         const noRes = document.getElementById('noResults');
-
-        grid.innerHTML = ''; 
-        displayedCount = 0; 
-        window.scrollTo(0, 0); 
-
+        grid.innerHTML = ''; displayedCount = 0; window.scrollTo(0, 0); 
         countEl.innerText = currentFilteredData.length;
-
-        if (currentFilteredData.length === 0) {
-            noRes.classList.remove('hidden'); noRes.classList.add('flex');
-            return;
-        }
+        if (currentFilteredData.length === 0) { noRes.classList.remove('hidden'); noRes.classList.add('flex'); return; }
         noRes.classList.add('hidden'); noRes.classList.remove('flex');
-
         loadMoreData(); 
     }
-
     function loadMoreData() {
         if (displayedCount >= currentFilteredData.length) return;
         const grid = document.getElementById('cardGrid');
         const fragment = document.createDocumentFragment();
         const nextBatch = currentFilteredData.slice(displayedCount, displayedCount + BATCH_SIZE);
-        
         nextBatch.forEach((item, index) => {
             const el = createCardElement(item);
             fragment.appendChild(el);
-            if (index === BATCH_SIZE - TRIGGER_OFFSET && displayedCount + BATCH_SIZE < currentFilteredData.length) {
-                observer.observe(el);
-            }
+            if (index === BATCH_SIZE - TRIGGER_OFFSET && displayedCount + BATCH_SIZE < currentFilteredData.length) { observer.observe(el); }
         });
         grid.appendChild(fragment);
         displayedCount += nextBatch.length;
     }
-
     function createCardElement(item) {
         const el = document.createElement('div');
         el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden active-scale relative group";
         const subtext = `${item.surface} • ${item.body} • ${item.sample}`;
         let cleanSize = (item.size && item.size.includes('X')) ? `${item.size.split('X')[0]}x${item.size.split('X')[1]}` : item.size;
-
         el.innerHTML = `
             <div class="relative h-44 bg-slate-50 overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
                 <img src="${item.image}" loading="lazy" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
@@ -398,13 +409,12 @@
                     </div>
                     <p class="text-[9px] font-medium text-slate-400 truncate w-full opacity-90 tracking-wider">${subtext}</p>
                 </div>
-            </div>
-        `;
+            </div>`;
         return el;
     }
 
     // ==========================================
-    // 6. SEARCH & UTILS
+    // 7. UTILS
     // ==========================================
     function handleSearch(val) {
         const clearBtn = document.getElementById('clearSearch');
@@ -413,7 +423,9 @@
     }
     function clearSearch() {
         const input = document.getElementById('globalSearch');
-        input.value = ''; input.focus(); handleSearch('');
+        input.value = ''; input.focus(); 
+        document.getElementById('searchSuggestions').classList.add('hidden');
+        handleSearch('');
     }
     function resetFilters() {
         activeSize = 'All';
