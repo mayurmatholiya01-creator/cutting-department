@@ -155,6 +155,7 @@
     let pillOrder = []; 
     let isReorderPending = false; 
     let currentSort = 'crate'; 
+    let isUserSorted = false; // NEW FLAG: Tracks if user manually clicked sort
     let displayedCount = 0;
     const BATCH_SIZE = 10;
     const TRIGGER_OFFSET = 2; 
@@ -217,6 +218,9 @@
     }
 
     function handleSearchInput(val) {
+        // RESET Manual Sort when user starts typing (Relevance Mode)
+        isUserSorted = false; 
+        
         handleSearch(val);
         const suggestionsBox = document.getElementById('searchSuggestions');
         if (val.trim().length === 0) { suggestionsBox.classList.add('hidden'); return; }
@@ -237,7 +241,11 @@
         const input = document.getElementById('globalSearch');
         input.value = designName;
         document.getElementById('searchSuggestions').classList.add('hidden');
-        handleSearch(designName); input.blur();
+        
+        isUserSorted = false; // Reset sort to prioritize exact match
+        handleSearch(designName); 
+        
+        input.blur();
         if (isReorderPending) triggerSmartReorder();
     }
 
@@ -246,14 +254,18 @@
         if (menu.classList.contains('dropdown-active')) { menu.classList.remove('dropdown-active'); menu.classList.add('dropdown-enter'); } 
         else { menu.classList.remove('dropdown-enter'); menu.classList.add('dropdown-active'); }
     }
+    
     function applySort(type) {
         currentSort = type;
+        isUserSorted = true; // MARK: User explicitly requested a sort
+        
         document.getElementById('check-crate').style.opacity = type === 'crate' ? '1' : '0';
         document.getElementById('check-design').style.opacity = type === 'design' ? '1' : '0';
         document.getElementById('sortMenu').classList.remove('dropdown-active');
         document.getElementById('sortMenu').classList.add('dropdown-enter');
         runQuery(); 
     }
+    
     function sortData(data) {
         if (currentSort === 'crate') {
             return data.sort((a, b) => a.crate.localeCompare(b.crate, undefined, { numeric: true, sensitivity: 'base' }));
@@ -292,18 +304,33 @@
         isReorderPending = false; 
     }
 
+    // --- FIX: UPDATED QUERY LOGIC (Smart Sort) ---
     function runQuery() {
         const query = document.getElementById('globalSearch').value.trim();
         let results = rawData; 
+        
+        // 1. Size Filter
         if (activeSize !== 'All') results = results.filter(i => i.size === activeSize);
+        
+        // 2. Search & Sort
         if (query.length > 0) {
             const fuseResult = window.fuse.search(query);
             results = fuseResult.map(r => r.item).filter(i => activeSize === 'All' || i.size === activeSize);
+            
+            // LOGIC: Only apply sort if user explicitly asked for it (isUserSorted).
+            // Otherwise, let Fuse (Relevance) decide the order.
+            if (isUserSorted) {
+                results = sortData(results);
+            }
+        } else {
+            // No Search = Always Sort
+            results = sortData(results);
         }
-        results = sortData(results);
+        
         currentFilteredData = results;
         resetGrid();
     }
+
     function resetGrid() {
         const grid = document.getElementById('cardGrid');
         const countEl = document.getElementById('showingCount');
@@ -329,7 +356,6 @@
     }
 
     function createCardElement(item) {
-        // Wrapper: Added 'break-inside-avoid' for Masonry logic
         const el = document.createElement('div');
         el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden active-scale relative group break-inside-avoid mb-3";
         
@@ -340,18 +366,15 @@
         const cratePrefix = parts[0] || ""; 
         const crateNum = parts[1] || item.crate;
 
-        // Dynamic Height Image: removed h-44, added h-auto w-full
         el.innerHTML = `
             <div class="relative w-full h-auto overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
                 <img src="${item.image}" loading="lazy" class="w-full h-auto block transition-transform duration-700 group-hover:scale-105">
             </div>
             <div class="flex items-stretch min-h-[65px] bg-white border-t border-slate-50">
-                
                 <div class="w-[72px] flex flex-col items-center justify-center border-r border-slate-50 shrink-0 bg-white">
                     <span class="text-[11px] font-bold text-slate-400 leading-none mb-0.5">${cratePrefix}</span>
                     <span class="text-[16px] font-mono font-medium text-slate-700 leading-none tracking-normal">${crateNum}</span>
                 </div>
-
                 <div class="flex-1 flex flex-col items-center justify-center p-2 text-center">
                     <div class="flex items-center justify-center gap-2 mb-1.5 w-full flex-wrap px-1">
                         <span class="text-[12px] font-bold text-slate-800 tracking-[1px] whitespace-nowrap uppercase">${cleanSize}</span>
@@ -368,10 +391,9 @@
         return el;
     }
 
-    // ... Utils and Modal functions remain same ...
     function handleSearch(val) { const clearBtn = document.getElementById('clearSearch'); if(val.length > 0) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden'); runQuery(); }
-    function clearSearch() { const input = document.getElementById('globalSearch'); input.value = ''; input.focus(); document.getElementById('searchSuggestions').classList.add('hidden'); handleSearch(''); }
-    function resetFilters() { activeSize = 'All'; pillOrder = pillOrder.sort(); pillOrder = pillOrder.filter(x => x !== 'All'); pillOrder.unshift('All'); renderFilters(); clearSearch(); document.getElementById('sizeFilterContainer').scrollLeft = 0; }
+    function clearSearch() { const input = document.getElementById('globalSearch'); input.value = ''; input.focus(); document.getElementById('searchSuggestions').classList.add('hidden'); isUserSorted = false; handleSearch(''); }
+    function resetFilters() { activeSize = 'All'; pillOrder = pillOrder.sort(); pillOrder = pillOrder.filter(x => x !== 'All'); pillOrder.unshift('All'); isUserSorted = false; renderFilters(); clearSearch(); document.getElementById('sizeFilterContainer').scrollLeft = 0; }
     function openModal(src, title) { const modal = document.getElementById('imageModal'); const content = document.getElementById('modalContent'); document.getElementById('modalImage').src = src; document.getElementById('modalTitle').innerText = title; modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); content.classList.add('scale-100'); }, 10); document.body.style.overflow = 'hidden'; }
     function closeModal() { const modal = document.getElementById('imageModal'); const content = document.getElementById('modalContent'); modal.classList.add('opacity-0'); content.classList.remove('scale-100'); content.classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); document.body.style.overflow = ''; }, 300); }
 
