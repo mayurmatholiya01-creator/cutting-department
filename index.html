@@ -358,25 +358,36 @@
         }
     }
 
-    // --- REFINED TOUCH HANDLING ---
-    function handleTouchStart(e) {
-        if (window.scrollY === 0) {
-            touchStartY = e.touches[0].clientY;
-            isPulling = true;
-        }
+function handleTouchStart(e) {
+    // 1. Touch position nikalo
+    const startX = e.touches[0].clientX;
+    const screenWidth = window.innerWidth;
 
-        const swipeTarget = e.target.closest('.swipe-top-layer');
-        if (swipeTarget) {
-            if (activeSwipeEl && activeSwipeEl !== swipeTarget) {
-                closeActiveSwipe();
-            }
-            swipeStartX = e.touches[0].clientX;
-            swipeStartY = e.touches[0].clientY;
-            activeSwipeEl = swipeTarget;
-            activeSwipeEl.classList.add('swiping-active');
-            isSwipingHorizontally = false;
-        }
+    // --- EDGE GUARD SOLUTION (Android Back Gesture Fix) ---
+    // Agar touch Left ya Right edge ke 25px area mein hai, toh hamara swipe MAT chalao.
+    // Isse Android Back Gesture aur Card Swipe mein ladai nahi hogi.
+    if (startX < 25 || startX > screenWidth - 25) {
+        return; // Code yahi ruk jayega, system back gesture kaam karega
     }
+    // -----------------------------------------------------
+
+    if (window.scrollY === 0) {
+        touchStartY = e.touches[0].clientY;
+        isPulling = true;
+    }
+
+    const swipeTarget = e.target.closest('.swipe-top-layer');
+    if (swipeTarget) {
+        if (activeSwipeEl && activeSwipeEl !== swipeTarget) {
+            closeActiveSwipe();
+        }
+        swipeStartX = e.touches[0].clientX;
+        swipeStartY = e.touches[0].clientY;
+        activeSwipeEl = swipeTarget;
+        activeSwipeEl.classList.add('swiping-active');
+        isSwipingHorizontally = false;
+    }
+}
 
     function handleTouchMove(e) {
         const y = e.touches[0].clientY;
