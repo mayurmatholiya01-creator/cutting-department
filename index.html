@@ -128,9 +128,6 @@
     </button>
 
 <script>
-    // ==========================================
-    // 1. DATA CONFIG (Test Data Updated for New Crates)
-    // ==========================================
     const DATA_CONFIG = {
         images: [
             "https://images.unsplash.com/photo-1620121474603-33c5c8d55590?ixlib=rb-4.0.3&w=800&q=80",
@@ -147,7 +144,7 @@
         surfaces: ["GRAVEL", "ILLUSION", "METTALIC", "SAHARA", "SHAPE TECH", "SOFT SATIN"],
         designs: ["LINEA STONECREMA", "PIETRA DI VALS SCURO", "RESIN MIRAG SAND", "RESIN MIRAG SCURO", "SPARKEL NERO", "PIZZARA SLATE", "LIMON STONE TAUPE", "CARARA FREDO"],
         sample: "105X205",
-        prefixes: ["A", "D", "SF", "X"] // For testing
+        prefixes: ["A", "D", "SF", "X"]
     };
 
     let rawData = [];
@@ -163,7 +160,6 @@
 
     function generateData() {
         rawData = Array.from({length: 100}, (_, i) => {
-            // Random Crate Generator: A-001, SF-306 etc.
             const prefix = DATA_CONFIG.prefixes[Math.floor(Math.random() * DATA_CONFIG.prefixes.length)];
             const num = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
             return {
@@ -172,7 +168,7 @@
                 size: DATA_CONFIG.sizes[i % DATA_CONFIG.sizes.length],
                 surface: DATA_CONFIG.surfaces[i % DATA_CONFIG.surfaces.length],
                 body: DATA_CONFIG.bodies[i % DATA_CONFIG.bodies.length],
-                crate: `${prefix}-${num}`, // e.g. SF-306
+                crate: `${prefix}-${num}`,
                 sample: DATA_CONFIG.sample,
                 image: DATA_CONFIG.images[i % DATA_CONFIG.images.length]
             };
@@ -258,12 +254,7 @@
     }
     function sortData(data) {
         if (currentSort === 'crate') {
-            return data.sort((a, b) => {
-                // Split Logic for sorting (A-001 vs SF-306)
-                // We sort by Number first, if number is same, then Prefix? Usually simple alpha-numeric string sort is fine for mixed.
-                // But let's try strict alphanumeric:
-                return a.crate.localeCompare(b.crate, undefined, { numeric: true, sensitivity: 'base' });
-            });
+            return data.sort((a, b) => a.crate.localeCompare(b.crate, undefined, { numeric: true, sensitivity: 'base' }));
         } else if (currentSort === 'design') {
             return data.sort((a, b) => a.design.localeCompare(b.design));
         }
@@ -339,35 +330,28 @@
         const el = document.createElement('div');
         el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden active-scale relative group";
         
-        // 1. Spaced Out Subtext (Premium Look)
         const subtext = `${item.surface} • ${item.body} • ${item.sample}`;
-        
         let cleanSize = (item.size && item.size.includes('X')) ? `${item.size.split('X')[0]}x${item.size.split('X')[1]}` : item.size;
 
-        // 2. CRATE SPLIT LOGIC
-        // Expects: "SF-306" or "A-001"
+        // Crate Logic
         const parts = item.crate.split('-');
-        const cratePrefix = parts[0] || ""; // SF
-        const crateNum = parts[1] || item.crate; // 306
+        const cratePrefix = parts[0] || ""; 
+        const crateNum = parts[1] || item.crate;
 
         el.innerHTML = `
             <div class="relative h-44 bg-slate-50 overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
                 <img src="${item.image}" loading="lazy" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
             </div>
             <div class="flex items-stretch min-h-[65px] bg-white">
-                
                 <div class="w-[65px] flex flex-col items-center justify-center border-r border-slate-100 shrink-0 bg-slate-50/30 gap-0.5">
                     <span class="text-[13px] font-black text-slate-400 uppercase tracking-tight leading-none">${cratePrefix}</span>
                     <span class="text-[15px] font-bold text-ios-blue font-mono leading-none tracking-tighter">${crateNum}</span>
                 </div>
-
                 <div class="flex-1 flex flex-col items-center justify-center p-2 text-center">
                     <div class="flex items-center justify-center gap-2 mb-1.5 w-full flex-wrap px-1">
-                        <span class="text-[12px] font-bold text-slate-800 tracking-widest whitespace-nowrap uppercase">${cleanSize}</span>
-                        
+                        <span class="text-[12px] font-bold text-slate-800 tracking-[1px] whitespace-nowrap uppercase">${cleanSize}</span>
                         <span class="text-[10px] text-slate-300">|</span>
-                        
-                        <h3 class="text-[12px] font-bold text-slate-900 leading-tight truncate max-w-full tracking-wide uppercase">
+                        <h3 class="text-[12px] font-bold text-slate-900 leading-tight truncate max-w-full tracking-[1.5px] uppercase">
                             ${item.design}
                         </h3>
                     </div>
@@ -379,6 +363,7 @@
         return el;
     }
 
+    // ... Utils and Modal functions remain same ...
     function handleSearch(val) {
         const clearBtn = document.getElementById('clearSearch');
         if(val.length > 0) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden');
