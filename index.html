@@ -45,6 +45,9 @@
         .glass-dark { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
         .active-scale:active { transform: scale(0.98); transition: transform 0.1s ease; }
         input[type="text"] { -webkit-appearance: none; margin: 0; }
+        
+        /* Smooth transition for pills moving */
+        #sizeFilterContainer button { transition: all 0.3s ease; }
     </style>
 </head>
 <body class="pb-24 pt-32">
@@ -137,7 +140,7 @@
     // INFINITE SCROLL STATE
     let displayedCount = 0;
     const BATCH_SIZE = 10;
-    const TRIGGER_OFFSET = 2; // Trigger when 8th item comes into view
+    const TRIGGER_OFFSET = 2; 
     let observer;
 
     function generateData() {
@@ -161,14 +164,12 @@
         generateData();
         renderFilters();
         
-        // Search Config (Removed Size/Crate from keys)
         window.fuse = new Fuse(rawData, { 
             keys: ['design', 'surface', 'body'], 
             threshold: 0.35, 
             ignoreLocation: true 
         });
 
-        // Initialize Intersection Observer
         observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -182,16 +183,57 @@
         resetGrid(); 
     }
 
+    // ==========================================
+    // SMART FILTER LOGIC (UPDATED)
+    // ==========================================
     function renderFilters() {
-        const sizes = ['All', ...new Set(rawData.map(i => i.size))].sort();
+        // 1. Get all unique sizes
+        let allSizes = [...new Set(rawData.map(i => i.size))].sort();
+
+        // 2. SMART REORDER: 
+        // If a specific filter is active, remove it from list and put it at the top (after 'All')
+        if (activeSize !== 'All') {
+            allSizes = allSizes.filter(s => s !== activeSize); // Remove active
+            allSizes.unshift(activeSize); // Add to front
+        }
+
+        // 3. 'All' must always be the very first
+        allSizes.unshift('All');
+
         const container = document.getElementById('sizeFilterContainer');
-        container.innerHTML = sizes.map(size => `
+        
+        // 4. Render Buttons
+        container.innerHTML = allSizes.map(size => {
+            const isSelected = size === activeSize;
+            // Clean size text for display
+            let displaySize = size === 'All' ? 'All' : `${size.split('X')[0]}x${size.split('X')[1]}`;
+            
+            return `
             <button onclick="filterBySize('${size}')" 
-                class="chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border ${size === 'All' ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-600 border-slate-200'}"
+                class="chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border ${isSelected ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-200' : 'bg-white text-slate-600 border-slate-200'}"
                 data-size="${size}">
-                ${size.split('X')[0]}x${size.split('X')[1]}
+                ${displaySize}
             </button>
-        `).join('');
+        `}).join('');
+        
+        // 5. Scroll container to start to show the active pill clearly
+        // container.scrollLeft = 0; // Optional: Force scroll to start
+    }
+
+    function filterBySize(size) {
+        // TOGGLE LOGIC: 
+        // If clicking the currently active size (and it's not 'All'), deselect it (go back to All)
+        if (activeSize === size && size !== 'All') {
+            activeSize = 'All';
+        } else {
+            activeSize = size;
+        }
+
+        // Re-render filters (This triggers the Reorder logic in renderFilters)
+        renderFilters();
+        
+        // Run the query to update grid
+        runQuery();
     }
 
     // ==========================================
@@ -243,7 +285,6 @@
         const el = document.createElement('div');
         el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden active-scale relative group";
         
-        // Original Subtext Format
         const subtext = `${item.surface} • ${item.body} • ${item.sample}`;
         
         let cleanSize = "N/A";
@@ -253,39 +294,24 @@
             cleanSize = item.size;
         }
 
-        // ORIGINAL CARD LAYOUT RESTORED
         el.innerHTML = `
             <div class="relative h-44 bg-slate-50 overflow-hidden cursor-pointer" onclick="openModal('${item.image}', '${item.design}')">
                 <img src="${item.image}" loading="lazy" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
             </div>
 
             <div class="flex items-stretch min-h-[60px] bg-white">
-                
                 <div class="w-[60px] flex flex-col items-center justify-center border-r border-slate-100 shrink-0 bg-slate-50/30">
                     <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Crate</span>
                     <span class="text-lg font-bold text-ios-blue font-mono leading-none mt-0.5">${item.crate.replace('C-', '')}</span>
                 </div>
-
                 <div class="flex-1 flex flex-col items-center justify-center p-2 text-center">
-                    
                     <div class="flex items-center justify-center gap-1.5 mb-1 w-full flex-wrap px-1">
-                        
-                        <span class="text-[13px] font-bold text-slate-800 tracking-wide whitespace-nowrap">
-                            ${cleanSize}
-                        </span>
-                        
+                        <span class="text-[13px] font-bold text-slate-800 tracking-wide whitespace-nowrap">${cleanSize}</span>
                         <span class="text-[12px] text-slate-300">|</span>
-
-                        <h3 class="text-[13px] font-bold text-slate-900 leading-tight truncate max-w-full tracking-wide">
-                            ${item.design}
-                        </h3>
+                        <h3 class="text-[13px] font-bold text-slate-900 leading-tight truncate max-w-full tracking-wide">${item.design}</h3>
                     </div>
-
-                    <p class="text-[9px] font-medium text-slate-400 truncate w-full opacity-90 tracking-wider">
-                        ${subtext}
-                    </p>
+                    <p class="text-[9px] font-medium text-slate-400 truncate w-full opacity-90 tracking-wider">${subtext}</p>
                 </div>
-
             </div>
         `;
         return el;
@@ -295,15 +321,6 @@
     // 4. LOGIC CONTROLLERS
     // ==========================================
     
-    function filterBySize(size) {
-        activeSize = size;
-        document.querySelectorAll('.chip').forEach(btn => {
-            const isSelected = btn.dataset.size === size;
-            btn.className = `chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border ${isSelected ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-600 border-slate-200'}`;
-        });
-        runQuery();
-    }
-
     function handleSearch(val) {
         const clearBtn = document.getElementById('clearSearch');
         if(val.length > 0) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden');
