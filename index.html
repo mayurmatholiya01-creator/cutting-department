@@ -61,7 +61,6 @@
         }
 
         .highlight { background-color: rgba(254, 240, 138, 0.5); font-weight: 700; color: #0f172a; border-radius: 2px; padding: 0 1px; }
-
         .zoom-transition { transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
         .zoomed { transform: scale(2.5); cursor: zoom-out; }
 
@@ -120,7 +119,8 @@
                 Result: <span id="showingCount" class="text-slate-900">0</span> Units
             </span>
             <div class="relative">
-<button id="sortBtn" onclick="toggleSortMenu()" class="flex items-center gap-1.5 text-ios-blue active:opacity-50 transition-opacity">                    <span class="text-[12px] font-semibold">Sort</span>
+                <button id="sortBtn" onclick="toggleSortMenu()" class="flex items-center gap-1.5 text-ios-blue active:opacity-50 transition-opacity">
+                    <span class="text-[12px] font-semibold">Sort</span>
                     <i class="fa-solid fa-arrow-up-wide-short text-[12px]"></i>
                 </button>
                 <div id="sortMenu" class="absolute right-0 top-8 w-48 glass-menu rounded-xl shadow-menu border border-white/20 origin-top-right transition-all duration-200 dropdown-enter flex flex-col overflow-hidden z-[60]">
@@ -168,6 +168,11 @@
     </button>
 
 <script>
+    // Hybrid Strategy: "Focus Selection, Lock Memory"
+    // 1. Selection = Smooth Center
+    // 2. Unselection = Stay Exactly where you are
+    // 3. Manual 'All' click = Scroll to home
+
     const DATA_CONFIG = {
         images: [
             "https://images.unsplash.com/photo-1620121474603-33c5c8d55590?ixlib=rb-4.0.3&w=800&q=80",
@@ -436,25 +441,39 @@
         }).join('');
     }
     
-    // UPDATED: Sticky Scroll Logic (Point 2)
+    // SMART HYBRID FILTER LOGIC (Point 2 + Consistency Fix)
     function filterBySize(size) {
-        const isUnselecting = (activeSize === size && size !== 'All');
-        activeSize = isUnselecting ? 'All' : size;
+        const isCurrentlyActive = (activeSize === size);
+        const isClickingAll = (size === 'All');
         
+        // Update State
+        if (isCurrentlyActive && !isClickingAll) {
+            activeSize = 'All'; // Toggle off to 'All'
+        } else {
+            activeSize = size; // Select new size
+        }
+
         const container = document.getElementById('sizeFilterContainer');
         const buttons = container.querySelectorAll('.chip');
         
         buttons.forEach(btn => {
             const btnSize = btn.dataset.size;
-            const isNowSelected = btnSize === activeSize;
+            const isNowSelected = (btnSize === activeSize);
             
-            // Only update visual styles
+            // Visual Update
             btn.className = `chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border ${isNowSelected ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-200' : 'bg-white text-slate-600 border-slate-200'}`;
             
-            // SMART SCROLL: Only scroll if we are SELECTING a new size or clicking 'All' directly.
-            // DO NOT scroll if we are just UNSELECTING a current size.
-            if (isNowSelected && !isUnselecting) {
-                btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            // HYBRID SCROLL LOGIC:
+            // 1. If Selecting a NEW Size -> Center it after a tiny delay for stability
+            // 2. If Clicking 'All' Manually -> Scroll to Home
+            // 3. If Unselecting a Size -> STAY PUT (Do not scroll)
+            if (isNowSelected) {
+                if (!isCurrentlyActive || isClickingAll) {
+                    if (navigator.vibrate) navigator.vibrate(5); // Selection Haptic
+                    setTimeout(() => {
+                        btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }, 50); // Tiny buffer to fix "sometimes not scrolling" bug
+                }
             }
         });
 
