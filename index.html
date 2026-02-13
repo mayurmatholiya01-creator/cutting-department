@@ -446,30 +446,34 @@
         }
     }
 
-    // --- REFINED COPY FUNCTION (Better Feedback) ---
-    function copyCardData(btnElement) {
-        const dataStr = btnElement.dataset.copyInfo;
-        if (!dataStr) return;
+// --- REFINED COPY FUNCTION (Fix for 1 sec delay) ---
+function copyCardData(btnElement) {
+    const dataStr = btnElement.dataset.copyInfo;
+    if (!dataStr) return;
 
-        navigator.clipboard.writeText(dataStr).then(() => {
-            if (navigator.vibrate) navigator.vibrate(25);
+    navigator.clipboard.writeText(dataStr).then(() => {
+        // 1. Haptic Feedback (Vibration)
+        if (navigator.vibrate) navigator.vibrate(25);
+        
+        // 2. Button ka rang badal kar Green karein aur "Copied!" likhein
+        const originalHtml = btnElement.innerHTML;
+        btnElement.innerHTML = '<i class="fa-solid fa-check text-lg mb-1"></i>Copied!';
+        btnElement.classList.replace('bg-ios-blue', 'bg-green-500');
+        
+        // 3. 1 Second ka wait karein taaki staff ko "Copied!" dikhe
+        setTimeout(() => {
+            // Ab card ko makkhan ki tarah band karein
+            closeActiveSwipe();
             
-            // Pro Feedback
-            const originalHtml = btnElement.innerHTML;
-            btnElement.innerHTML = '<i class="fa-solid fa-check text-lg mb-1"></i>Copied!';
-            btnElement.classList.replace('bg-ios-blue', 'bg-green-500');
-            
-            // Wait 1 second so user sees the message, then close smoothly
+            // 4. Jab card poori tarah band ho jaye (400ms baad), tab button ko wapas normal karein
             setTimeout(() => {
-                closeActiveSwipe();
-                // Reset button after it's hidden
-                setTimeout(() => {
-                    btnElement.innerHTML = originalHtml;
-                    btnElement.classList.replace('bg-green-500', 'bg-ios-blue');
-                }, 400);
-            }, 1000);
-        });
-    }
+                btnElement.innerHTML = originalHtml;
+                btnElement.classList.replace('bg-green-500', 'bg-ios-blue');
+            }, 400);
+            
+        }, 1000); // Yeh raha wo 1 second (1000ms) ka delay
+    });
+}
 
     function toggleZoom(e) {
         const img = document.getElementById('modalImage');
