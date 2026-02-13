@@ -24,7 +24,7 @@
                         ios: {
                             bg: '#F2F2F7',
                             card: '#FFFFFF',
-                            blue: '#007AFF',
+                            blue: '#007AFF', // iOS Blue Color
                             gray: '#8E8E93',
                             separator: '#C6C6C8'
                         }
@@ -40,7 +40,7 @@
     </script>
 
     <style>
-        body { background-color: #F2F2F7; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
+        body { background-color: #F2F2F7; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; touch-action: pan-y; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .glass { background: rgba(255, 255, 255, 0.90); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 0.5px solid rgba(0,0,0,0.05); }
@@ -71,6 +71,21 @@
         .chip { transition: background-color 0.2s, color 0.2s, border-color 0.2s; }
         .dropdown-enter { transform: scale(0.95); opacity: 0; pointer-events: none; }
         .dropdown-active { transform: scale(1); opacity: 1; pointer-events: auto; }
+
+        /* --- NEW SWIPE STYLES --- */
+        .swipe-reveal-layer {
+            position: absolute; top: 0; bottom: 0; right: 0; width: 100%;
+            display: flex; justify-content: flex-end; z-index: 0;
+        }
+        .swipe-action-btn {
+            height: 100%; width: 80px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;
+        }
+        .swipe-top-layer {
+            position: relative; z-index: 10; background: white; transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); /* Apple-like spring */
+            will-change: transform;
+        }
+        .swiping-active { transition: none !important; } /* No transition during drag */
 
         html { scroll-behavior: smooth; }
     </style>
@@ -168,11 +183,6 @@
     </button>
 
 <script>
-    // Hybrid Strategy: "Focus Selection, Lock Memory"
-    // 1. Selection = Smooth Center
-    // 2. Unselection = Stay Exactly where you are
-    // 3. Manual 'All' click = Scroll to home
-
     const DATA_CONFIG = {
         images: [
             "https://images.unsplash.com/photo-1620121474603-33c5c8d55590?ixlib=rb-4.0.3&w=800&q=80",
@@ -206,6 +216,12 @@
     let touchStartY = 0;
     let isPulling = false;
     const PULL_THRESHOLD = 120; 
+
+    // --- NEW SWIPE VARIABLES ---
+    let swipeStartX = 0;
+    let swipeStartY = 0;
+    let activeSwipeEl = null;
+    let isSwipingHorizontally = false;
 
     function generateData() {
         rawData = Array.from({length: 100}, (_, i) => {
@@ -251,6 +267,11 @@
             if (searchGroup && suggestions && !searchGroup.contains(e.target) && !suggestions.contains(e.target)) {
                 suggestions.classList.add('hidden');
             }
+            
+            // Close active swipe if clicking outside
+             if (activeSwipeEl && !e.target.closest('.swipe-top-layer')) {
+                closeActiveSwipe();
+            }
         });
 
         observer = new IntersectionObserver((entries) => {
@@ -275,7 +296,8 @@
         window.addEventListener('offline', updateNetworkStatus);
         window.addEventListener('online', updateNetworkStatus);
 
-        document.addEventListener('touchstart', handleTouchStart, {passive: true});
+        // Pull to Refresh Listeners
+        document.addEventListener('touchstart', handleTouchStart, {passive: false}); // Changed to false for swipe detection
         document.addEventListener('touchmove', handleTouchMove, {passive: false});
         document.addEventListener('touchend', handleTouchEnd, {passive: true});
 
@@ -314,52 +336,137 @@
         }
     }
 
+    // --- COMBINED TOUCH HANDLING (Pull-to-Refresh + Swipe-to-Copy) ---
     function handleTouchStart(e) {
+        // Pull to Refresh Logic
         if (window.scrollY === 0) {
             touchStartY = e.touches[0].clientY;
             isPulling = true;
         }
+
+        // Swipe to Copy Logic
+        const swipeTarget = e.target.closest('.swipe-top-layer');
+        if (swipeTarget) {
+             // Close any other open swipes first
+            if (activeSwipeEl && activeSwipeEl !== swipeTarget) {
+                closeActiveSwipe();
+            }
+            swipeStartX = e.touches[0].clientX;
+            swipeStartY = e.touches[0].clientY;
+            activeSwipeEl = swipeTarget;
+            activeSwipeEl.classList.add('swiping-active'); // Remove transition during drag
+            isSwipingHorizontally = false;
+        }
     }
 
     function handleTouchMove(e) {
-        if (!isPulling || window.scrollY > 0) return;
         const y = e.touches[0].clientY;
-        const pullDistance = y - touchStartY;
+        const x = e.touches[0].clientX;
         
-        if (pullDistance > 0) {
-            const damped = Math.min(pullDistance * 0.5, 150); 
-            const ptrContainer = document.getElementById('ptr-container');
-            const spinner = document.getElementById('ptr-spinner');
+        // Pull to Refresh Move
+        if (isPulling && window.scrollY <= 0) {
+             const pullDistance = y - touchStartY;
+             if (pullDistance > 0 && !isSwipingHorizontally) {
+                const damped = Math.min(pullDistance * 0.5, 150); 
+                const ptrContainer = document.getElementById('ptr-container');
+                const spinner = document.getElementById('ptr-spinner');
+                ptrContainer.style.opacity = Math.min(damped / 100, 1);
+                ptrContainer.style.transform = `translateY(${damped}px)`;
+                spinner.style.transform = `rotate(${damped * 2}deg)`;
+                if (e.cancelable) e.preventDefault();
+             }
+        }
+
+        // Swipe to Copy Move
+        if (activeSwipeEl) {
+            const deltaX = x - swipeStartX;
+            const deltaY = y - swipeStartY;
             
-            ptrContainer.style.opacity = Math.min(damped / 100, 1);
-            ptrContainer.style.transform = `translateY(${damped}px)`;
-            spinner.style.transform = `rotate(${damped * 2}deg)`;
-            
-            if (e.cancelable) e.preventDefault(); 
+            // Determine if scrolling or swiping (Smart Lock)
+            if (!isSwipingHorizontally && Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+                isSwipingHorizontally = true;
+                isPulling = false; // Cancel P2R if swiping sideways
+            }
+
+            if (isSwipingHorizontally) {
+                if (e.cancelable) e.preventDefault(); // Stop vertical scroll
+                // Only allow left swipe (negative deltaX) with resistance
+                let translateX = deltaX < 0 ? deltaX * 0.6 : 0; 
+                // Limit how far it can go
+                translateX = Math.max(translateX, -100);
+                activeSwipeEl.style.transform = `translateX(${translateX}px)`;
+            }
         }
     }
 
     function handleTouchEnd(e) {
-        if (!isPulling) return;
-        isPulling = false;
-        
-        const ptrContainer = document.getElementById('ptr-container');
-        const spinner = document.getElementById('ptr-spinner');
-        
-        if (parseInt(ptrContainer.style.transform.replace('translateY(', '')) > 60) {
-            spinner.classList.add('rotating');
-            if (navigator.vibrate) navigator.vibrate(10); 
-            
-            setTimeout(() => {
-                runQuery(); 
-                spinner.classList.remove('rotating');
+        // Pull to Refresh End
+        if (isPulling) {
+            isPulling = false;
+            const ptrContainer = document.getElementById('ptr-container');
+            const spinner = document.getElementById('ptr-spinner');
+            if (parseInt(ptrContainer.style.transform.replace('translateY(', '')) > 60) {
+                spinner.classList.add('rotating');
+                if (navigator.vibrate) navigator.vibrate(10); 
+                setTimeout(() => {
+                    runQuery(); 
+                    spinner.classList.remove('rotating');
+                    ptrContainer.style.transform = 'translateY(0px)';
+                    ptrContainer.style.opacity = '0';
+                }, 1000);
+            } else {
                 ptrContainer.style.transform = 'translateY(0px)';
                 ptrContainer.style.opacity = '0';
-            }, 1000);
-        } else {
-            ptrContainer.style.transform = 'translateY(0px)';
-            ptrContainer.style.opacity = '0';
+            }
         }
+
+        // Swipe to Copy End
+        if (activeSwipeEl) {
+            activeSwipeEl.classList.remove('swiping-active'); // Add transition back
+            const currentTransform = activeSwipeEl.style.transform;
+            const translateX = currentTransform ? parseInt(currentTransform.replace('translateX(', '')) : 0;
+            
+            if (translateX < -60) { // Threshold to snap open
+                activeSwipeEl.style.transform = 'translateX(-80px)'; // Snap open
+                if (navigator.vibrate) navigator.vibrate(5); // Haptic on snap
+            } else {
+                closeActiveSwipe(); // Snap closed
+            }
+            isSwipingHorizontally = false;
+            // DO NOT nullify activeSwipeEl here, keep it tracked to close later
+        }
+    }
+
+    function closeActiveSwipe() {
+        if (activeSwipeEl) {
+            activeSwipeEl.style.transform = 'translateX(0px)';
+            activeSwipeEl = null;
+        }
+    }
+
+    // --- NEW COPY TO CLIPBOARD FUNCTION ---
+    function copyCardData(btnElement) {
+        const dataStr = btnElement.dataset.copyInfo;
+        if (!dataStr) return;
+
+        navigator.clipboard.writeText(dataStr).then(() => {
+            // Haptic Success
+            if (navigator.vibrate) navigator.vibrate(20);
+            
+            // Visual Feedback (Temporary Icon Change)
+            const originalHtml = btnElement.innerHTML;
+            btnElement.innerHTML = '<i class="fa-solid fa-check text-lg mb-1"></i>Copied!';
+            btnElement.classList.add('bg-green-500');
+            
+            setTimeout(() => {
+                btnElement.innerHTML = originalHtml;
+                btnElement.classList.remove('bg-green-500');
+                closeActiveSwipe(); // Close after copy
+            }, 1500);
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+             alert('Copy failed. Please try again.');
+        });
     }
 
     function toggleZoom(e) {
@@ -441,16 +548,14 @@
         }).join('');
     }
     
-    // SMART HYBRID FILTER LOGIC (Point 2 + Consistency Fix)
     function filterBySize(size) {
         const isCurrentlyActive = (activeSize === size);
         const isClickingAll = (size === 'All');
         
-        // Update State
         if (isCurrentlyActive && !isClickingAll) {
-            activeSize = 'All'; // Toggle off to 'All'
+            activeSize = 'All'; 
         } else {
-            activeSize = size; // Select new size
+            activeSize = size; 
         }
 
         const container = document.getElementById('sizeFilterContainer');
@@ -460,19 +565,14 @@
             const btnSize = btn.dataset.size;
             const isNowSelected = (btnSize === activeSize);
             
-            // Visual Update
             btn.className = `chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border ${isNowSelected ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-200' : 'bg-white text-slate-600 border-slate-200'}`;
             
-            // HYBRID SCROLL LOGIC:
-            // 1. If Selecting a NEW Size -> Center it after a tiny delay for stability
-            // 2. If Clicking 'All' Manually -> Scroll to Home
-            // 3. If Unselecting a Size -> STAY PUT (Do not scroll)
             if (isNowSelected) {
                 if (!isCurrentlyActive || isClickingAll) {
-                    if (navigator.vibrate) navigator.vibrate(5); // Selection Haptic
+                    if (navigator.vibrate) navigator.vibrate(5); 
                     setTimeout(() => {
                         btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }, 50); // Tiny buffer to fix "sometimes not scrolling" bug
+                    }, 50); 
                 }
             }
         });
@@ -520,9 +620,10 @@
         displayedCount += nextBatch.length;
     }
 
+    // --- UPDATED CARD ELEMENT WITH SWIPE STRUCTURE ---
     function createCardElement(item, query) {
         const el = document.createElement('div');
-        el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden active-scale relative group break-inside-avoid mb-3";
+        el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden relative group break-inside-avoid mb-3";
         
         const displayDesign = highlightText(item.design, query);
         const displaySurface = highlightText(item.surface, query);
@@ -535,28 +636,44 @@
         const cratePrefix = parts[0] || ""; 
         const crateNum = parts[1] || item.crate;
 
+        // Prepare Copy Data
+        const copyString = `Design: ${item.design}\nCrate: ${item.crate}\nSize: ${cleanSize}`;
+
         el.innerHTML = `
             <div class="relative w-full h-auto overflow-hidden cursor-pointer" onclick="openModal('${item.image}')">
                 <img src="${item.image}" loading="lazy" class="w-full h-auto block transition-transform duration-700 group-hover:scale-105">
             </div>
-            <div class="flex items-stretch min-h-[65px] bg-white border-t border-slate-50">
-                <div class="w-[72px] flex flex-col items-center justify-center border-r border-slate-50 shrink-0 bg-white">
-                    <span class="text-[11px] font-bold text-slate-400 leading-none mb-0.5">${cratePrefix}</span>
-                    <span class="text-[16px] font-mono font-medium text-slate-700 leading-none tracking-normal">${crateNum}</span>
+            
+            <div class="relative overflow-hidden h-[65px] bg-ios-blue"> 
+                <div class="swipe-reveal-layer">
+                    <button class="swipe-action-btn active:bg-blue-600 transition-colors" 
+                            data-copy-info="${copyString}"
+                            onclick="copyCardData(this)">
+                        <i class="fa-regular fa-copy text-lg mb-1"></i>
+                        Copy
+                    </button>
                 </div>
-                <div class="flex-1 flex flex-col items-center justify-center p-2 text-center">
-                    <div class="flex items-center justify-center gap-2 mb-1.5 w-full flex-wrap px-1">
-                        <span class="text-[12px] font-bold text-slate-800 tracking-[1px] whitespace-nowrap uppercase">${cleanSize}</span>
-                        <span class="text-[10px] text-slate-300">|</span>
-                        <h3 class="text-[12px] font-bold text-slate-900 leading-tight truncate max-w-full tracking-[1.5px] uppercase">
-                            ${displayDesign}
-                        </h3>
+
+                <div class="swipe-top-layer flex items-stretch h-full bg-white border-t border-slate-50">
+                    <div class="w-[72px] flex flex-col items-center justify-center border-r border-slate-50 shrink-0 bg-white">
+                        <span class="text-[11px] font-bold text-slate-400 leading-none mb-0.5">${cratePrefix}</span>
+                        <span class="text-[16px] font-mono font-medium text-slate-700 leading-none tracking-normal">${crateNum}</span>
                     </div>
-                    <p class="text-[9px] font-semibold text-slate-400 truncate w-full opacity-90 tracking-[0.15em] uppercase">
-                        ${subtext}
-                    </p>
+                    <div class="flex-1 flex flex-col items-center justify-center p-2 text-center">
+                        <div class="flex items-center justify-center gap-2 mb-1.5 w-full flex-wrap px-1">
+                            <span class="text-[12px] font-bold text-slate-800 tracking-[1px] whitespace-nowrap uppercase">${cleanSize}</span>
+                            <span class="text-[10px] text-slate-300">|</span>
+                            <h3 class="text-[12px] font-bold text-slate-900 leading-tight truncate max-w-full tracking-[1.5px] uppercase">
+                                ${displayDesign}
+                            </h3>
+                        </div>
+                        <p class="text-[9px] font-semibold text-slate-400 truncate w-full opacity-90 tracking-[0.15em] uppercase">
+                            ${subtext}
+                        </p>
+                    </div>
                 </div>
-            </div>`;
+            </div>
+            `;
         return el;
     }
 
