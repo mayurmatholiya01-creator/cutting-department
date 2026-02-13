@@ -680,7 +680,7 @@ function handleTouchStart(e) {
 ✂️ Sample Size: *${item.sample}*`;
         // ---------------------------
 
-        el.innerHTML = `
+       el.innerHTML = `
             <div class="relative w-full h-auto overflow-hidden cursor-pointer" onclick="openModal('${item.image}')">
                 <img src="${item.image}" loading="lazy" class="w-full h-auto block transition-transform duration-700 group-hover:scale-105">
             </div>
@@ -698,17 +698,20 @@ function handleTouchStart(e) {
                 <div class="swipe-top-layer flex items-stretch h-full bg-white border-t border-slate-50">
                     <div class="w-[72px] flex flex-col items-center justify-center border-r border-slate-50 shrink-0 bg-white">
                         <span class="text-[11px] font-bold text-slate-400 leading-none mb-0.5">${item.crate.split('-')[0]}</span>
-                        <span class="text-[16px] font-mono font-medium text-slate-700 leading-none">${item.crate.split('-')[1]}</span>
+                        <span class="text-[16px] font-mono font-medium text-slate-700 leading-none tracking-tighter">${item.crate.split('-')[1]}</span>
                     </div>
                     <div class="flex-1 flex flex-col items-center justify-center p-2 text-center overflow-hidden">
                         <div class="flex items-center justify-center gap-2 mb-1 w-full flex-wrap">
-                            <span class="text-[12px] font-bold text-slate-800 uppercase">${cleanSize}</span>
+                            <span class="text-[12px] font-bold text-slate-800 uppercase tracking-wider">${cleanSize}</span>
+                            
                             <span class="text-[10px] text-slate-300">|</span>
-                            <h3 class="text-[12px] font-bold text-slate-900 truncate tracking-wide uppercase">
+                            
+                            <h3 class="text-[12px] font-bold text-slate-900 truncate uppercase tracking-widest">
                                 ${displayDesign}
                             </h3>
                         </div>
-                        <p class="text-[9px] font-semibold text-slate-400 truncate w-full uppercase">
+                        
+                        <p class="text-[9px] font-semibold text-slate-400 truncate w-full uppercase tracking-wider">
                             ${subtext}
                         </p>
                     </div>
