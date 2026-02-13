@@ -40,7 +40,10 @@
     </script>
 
     <style>
-        body { background-color: #F2F2F7; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; touch-action: pan-y; }
+        /* FIX 3: Blue Flash Disable (Native Feel) */
+        * { -webkit-tap-highlight-color: transparent; }
+
+        body { background-color: #F2F2F7; -webkit-font-smoothing: antialiased; touch-action: pan-y; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .glass { background: rgba(255, 255, 255, 0.90); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 0.5px solid rgba(0,0,0,0.05); }
@@ -116,7 +119,7 @@
                         <i class="fa-solid fa-magnifying-glass text-slate-400 text-sm"></i>
                     </div>
                     <input type="search" id="globalSearch" autocomplete="off" enterkeyhint="search" inputmode="search"
-                        class="block w-full pl-9 pr-10 py-3 rounded-xl bg-slate-100/80 border-none text-slate-900 placeholder-slate-400 focus:ring-0 focus:bg-white focus:shadow-ios transition-all text-[15px] font-medium"
+                        class="block w-full pl-9 pr-10 py-3 rounded-xl bg-slate-100/80 border-none text-slate-900 placeholder-slate-400 focus:ring-0 focus:bg-white focus:shadow-ios transition-all text-[16px] font-medium"
                         placeholder="Search Design, Surface, Body..." oninput="handleSearchInput(this.value)">
                     
                     <button id="clearSearch" class="absolute inset-y-0 right-0 w-10 flex items-center justify-center hidden active:opacity-60" onclick="clearSearch()">
@@ -254,7 +257,6 @@
             if (document.activeElement === input) { input.blur(); }
             document.getElementById('searchSuggestions').classList.add('hidden');
             
-            // NEW: Close swipe if user scrolls vertically
             if (activeSwipeEl && window.getComputedStyle(activeSwipeEl).transform !== 'none') {
                  closeActiveSwipe();
             }
@@ -275,7 +277,8 @@
                 suggestions.classList.add('hidden');
             }
             
-           if (activeSwipeEl && !e.target.closest('.swipe-top-layer') && !e.target.closest('.swipe-action-btn')) {
+             // FIX 1: COPY BUG FIX (Added !e.target.closest check for action button)
+             if (activeSwipeEl && !e.target.closest('.swipe-top-layer') && !e.target.closest('.swipe-action-btn')) {
                 closeActiveSwipe();
             }
         });
@@ -446,33 +449,31 @@
         }
     }
 
-// --- REFINED COPY FUNCTION (Fix for 1 sec delay) ---
-function copyCardData(btnElement, event) { // 1. yahan 'event' add kiya
-    if (event) event.stopPropagation();    // 2. Event ko rok diya taaki wo document tak na pahuche
+    // FIX 1: Event Propagation Stop + Pro Formatting logic
+    function copyCardData(btnElement, event) {
+        if (event) event.stopPropagation();
 
-    const dataStr = btnElement.dataset.copyInfo;
-    if (!dataStr) return;
+        const dataStr = btnElement.dataset.copyInfo;
+        if (!dataStr) return;
 
-    navigator.clipboard.writeText(dataStr).then(() => {
-        if (navigator.vibrate) navigator.vibrate(25);
-        
-        const originalHtml = btnElement.innerHTML;
-        // Button Green karein
-        btnElement.innerHTML = '<i class="fa-solid fa-check text-lg mb-1"></i>Copied!';
-        btnElement.classList.replace('bg-ios-blue', 'bg-green-500');
-        
-        // 1 Second ka wait
-        setTimeout(() => {
-            closeActiveSwipe(); // Ab ye shanti se band karega
+        navigator.clipboard.writeText(dataStr).then(() => {
+            if (navigator.vibrate) navigator.vibrate(25);
+            
+            const originalHtml = btnElement.innerHTML;
+            btnElement.innerHTML = '<i class="fa-solid fa-check text-lg mb-1"></i>Copied!';
+            btnElement.classList.replace('bg-ios-blue', 'bg-green-500');
             
             setTimeout(() => {
-                btnElement.innerHTML = originalHtml;
-                btnElement.classList.replace('bg-green-500', 'bg-ios-blue');
-            }, 400);
-            
-        }, 1000); 
-    });
-}
+                closeActiveSwipe();
+                
+                setTimeout(() => {
+                    btnElement.innerHTML = originalHtml;
+                    btnElement.classList.replace('bg-green-500', 'bg-ios-blue');
+                }, 400);
+                
+            }, 1000); 
+        });
+    }
 
     function toggleZoom(e) {
         const img = document.getElementById('modalImage');
@@ -599,6 +600,9 @@ function copyCardData(btnElement, event) { // 1. yahan 'event' add kiya
     }
 
     function resetGrid() {
+        // FIX 4: GHOST SWIPE FIX
+        activeSwipeEl = null; 
+
         const grid = document.getElementById('cardGrid');
         const countEl = document.getElementById('showingCount');
         const noRes = document.getElementById('noResults');
@@ -625,66 +629,69 @@ function copyCardData(btnElement, event) { // 1. yahan 'event' add kiya
         displayedCount += nextBatch.length;
     }
 
-function createCardElement(item, query) {
-    const el = document.createElement('div');
-    el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden relative break-inside-avoid mb-3";
-    
-    const displayDesign = highlightText(item.design, query);
-    const displaySurface = highlightText(item.surface, query);
-    const displayBody = highlightText(item.body, query);
-
-    const subtext = `${displaySurface} • ${displayBody} • ${item.sample}`;
-    let cleanSize = (item.size && item.size.includes('X')) ? `${item.size.split('X')[0]}x${item.size.split('X')[1]}` : item.size;
-
-// --- PREMIUM TILE FORMAT ---
-    const copyString = `📦 *Crate No*: *${item.crate}*
-📐 *Size*: *${cleanSize}*
-💠 Surface: ${item.surface}
-🪨 Body: ${item.body}
-🎨 *Design Name*: *${item.design}*
-✂️ Sample Size: ${item.sample}`;
-    // ---------------------------
-
-    el.innerHTML = `
-        <div class="relative w-full h-auto overflow-hidden cursor-pointer" onclick="openModal('${item.image}')">
-            <img src="${item.image}" loading="lazy" class="w-full h-auto block transition-transform duration-700 group-hover:scale-105">
-        </div>
+    function createCardElement(item, query) {
+        const el = document.createElement('div');
+        el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden relative break-inside-avoid mb-3";
         
-        <div class="relative overflow-hidden h-[65px] bg-slate-100"> 
-            <div class="swipe-reveal-layer">
-                <button class="swipe-action-btn bg-ios-blue active:opacity-80" 
-                        data-copy-info="${copyString}"
-                        onclick="copyCardData(this, event)">
-                    <i class="fa-regular fa-copy text-lg mb-1"></i>
-                    Copy
-                </button>
-            </div>
+        const displayDesign = highlightText(item.design, query);
+        const displaySurface = highlightText(item.surface, query);
+        const displayBody = highlightText(item.body, query);
 
-            <div class="swipe-top-layer flex items-stretch h-full bg-white border-t border-slate-50">
-                <div class="w-[72px] flex flex-col items-center justify-center border-r border-slate-50 shrink-0 bg-white">
-                    <span class="text-[11px] font-bold text-slate-400 leading-none mb-0.5">${item.crate.split('-')[0]}</span>
-                    <span class="text-[16px] font-mono font-medium text-slate-700 leading-none">${item.crate.split('-')[1]}</span>
+        const subtext = `${displaySurface} • ${displayBody} • ${item.sample}`;
+        let cleanSize = (item.size && item.size.includes('X')) ? `${item.size.split('X')[0]}x${item.size.split('X')[1]}` : item.size;
+
+        // --- PREMIUM TILE FORMAT ---
+        const copyString = `📦 Crate No: *${item.crate}*
+📐 Size: *${cleanSize}*
+💠 Surface: *${item.surface}*
+🪨 Body: *${item.body}*
+🎨 Design Name: *${item.design}*
+✂️ Sample Size: *${item.sample}*`;
+        // ---------------------------
+
+        el.innerHTML = `
+            <div class="relative w-full h-auto overflow-hidden cursor-pointer" onclick="openModal('${item.image}')">
+                <img src="${item.image}" loading="lazy" class="w-full h-auto block transition-transform duration-700 group-hover:scale-105">
+            </div>
+            
+            <div class="relative overflow-hidden h-[65px] bg-slate-100"> 
+                <div class="swipe-reveal-layer">
+                    <button class="swipe-action-btn bg-ios-blue active:opacity-80" 
+                            data-copy-info="${copyString}"
+                            onclick="copyCardData(this, event)">
+                        <i class="fa-regular fa-copy text-lg mb-1"></i>
+                        Copy
+                    </button>
                 </div>
-                <div class="flex-1 flex flex-col items-center justify-center p-2 text-center overflow-hidden">
-                    <div class="flex items-center justify-center gap-2 mb-1 w-full flex-wrap">
-                        <span class="text-[12px] font-bold text-slate-800 uppercase">${cleanSize}</span>
-                        <span class="text-[10px] text-slate-300">|</span>
-                        <h3 class="text-[12px] font-bold text-slate-900 truncate tracking-wide uppercase">
-                            ${displayDesign}
-                        </h3>
+
+                <div class="swipe-top-layer flex items-stretch h-full bg-white border-t border-slate-50">
+                    <div class="w-[72px] flex flex-col items-center justify-center border-r border-slate-50 shrink-0 bg-white">
+                        <span class="text-[11px] font-bold text-slate-400 leading-none mb-0.5">${item.crate.split('-')[0]}</span>
+                        <span class="text-[16px] font-mono font-medium text-slate-700 leading-none">${item.crate.split('-')[1]}</span>
                     </div>
-                    <p class="text-[9px] font-semibold text-slate-400 truncate w-full uppercase">
-                        ${subtext}
-                    </p>
+                    <div class="flex-1 flex flex-col items-center justify-center p-2 text-center overflow-hidden">
+                        <div class="flex items-center justify-center gap-2 mb-1 w-full flex-wrap">
+                            <span class="text-[12px] font-bold text-slate-800 uppercase">${cleanSize}</span>
+                            <span class="text-[10px] text-slate-300">|</span>
+                            <h3 class="text-[12px] font-bold text-slate-900 truncate tracking-wide uppercase">
+                                ${displayDesign}
+                            </h3>
+                        </div>
+                        <p class="text-[9px] font-semibold text-slate-400 truncate w-full uppercase">
+                            ${subtext}
+                        </p>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
-    return el;
-}
+        `;
+        return el;
+    }
 
     function handleSearch(val) { const clearBtn = document.getElementById('clearSearch'); if(val.length > 0) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden'); runQuery(); }
-    function clearSearch() { const input = document.getElementById('globalSearch'); input.value = ''; input.focus(); document.getElementById('searchSuggestions').classList.add('hidden'); isUserSorted = false; handleSearch(''); }
+    
+    // FIX 5: Keyboard Glitch Fix (Removed .focus())
+    function clearSearch() { const input = document.getElementById('globalSearch'); input.value = ''; document.getElementById('searchSuggestions').classList.add('hidden'); isUserSorted = false; handleSearch(''); }
+    
     function resetFilters() { activeSize = 'All'; isUserSorted = false; filterBySize('All'); clearSearch(); document.getElementById('sizeFilterContainer').scrollLeft = 0; }
     
     function openModal(src) { 
