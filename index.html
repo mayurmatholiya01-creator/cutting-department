@@ -625,56 +625,63 @@ function copyCardData(btnElement, event) { // 1. yahan 'event' add kiya
         displayedCount += nextBatch.length;
     }
 
-    function createCardElement(item, query) {
-        const el = document.createElement('div');
-        el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden relative break-inside-avoid mb-3";
+function createCardElement(item, query) {
+    const el = document.createElement('div');
+    el.className = "bg-white rounded-[16px] shadow-sm border border-slate-200 overflow-hidden relative break-inside-avoid mb-3";
+    
+    const displayDesign = highlightText(item.design, query);
+    const displaySurface = highlightText(item.surface, query);
+    const displayBody = highlightText(item.body, query);
+
+    const subtext = `${displaySurface} • ${displayBody} • ${item.sample}`;
+    let cleanSize = (item.size && item.size.includes('X')) ? `${item.size.split('X')[0]}x${item.size.split('X')[1]}` : item.size;
+
+    // --- NEW PRO COPY FORMAT ---
+    const copyString = `📦 *Crate No:* ${item.crate}
+📐 *Size:* ${cleanSize}
+✨ Surface: ${item.surface}
+🧱 Body: ${item.body}
+🎨 *Design Name:* ${item.design}
+🔖 Sample Size: ${item.sample}`;
+    // ---------------------------
+
+    el.innerHTML = `
+        <div class="relative w-full h-auto overflow-hidden cursor-pointer" onclick="openModal('${item.image}')">
+            <img src="${item.image}" loading="lazy" class="w-full h-auto block transition-transform duration-700 group-hover:scale-105">
+        </div>
         
-        const displayDesign = highlightText(item.design, query);
-        const displaySurface = highlightText(item.surface, query);
-        const displayBody = highlightText(item.body, query);
-
-        const subtext = `${displaySurface} • ${displayBody} • ${item.sample}`;
-        let cleanSize = (item.size && item.size.includes('X')) ? `${item.size.split('X')[0]}x${item.size.split('X')[1]}` : item.size;
-
-        const copyString = `Design: ${item.design}\nCrate: ${item.crate}\nSize: ${cleanSize}`;
-
-        el.innerHTML = `
-            <div class="relative w-full h-auto overflow-hidden cursor-pointer" onclick="openModal('${item.image}')">
-                <img src="${item.image}" loading="lazy" class="w-full h-auto block transition-transform duration-700 group-hover:scale-105">
+        <div class="relative overflow-hidden h-[65px] bg-slate-100"> 
+            <div class="swipe-reveal-layer">
+                <button class="swipe-action-btn bg-ios-blue active:opacity-80" 
+                        data-copy-info="${copyString}"
+                        onclick="copyCardData(this, event)">
+                    <i class="fa-regular fa-copy text-lg mb-1"></i>
+                    Copy
+                </button>
             </div>
-            
-            <div class="relative overflow-hidden h-[65px] bg-slate-100"> 
-                <div class="swipe-reveal-layer">
-                    <button class="swipe-action-btn bg-ios-blue active:opacity-80" 
-                            data-copy-info="${copyString}"
-                            onclick="copyCardData(this, event)">
-                        <i class="fa-regular fa-copy text-lg mb-1"></i>
-                        Copy
-                    </button>
-                </div>
 
-                <div class="swipe-top-layer flex items-stretch h-full bg-white border-t border-slate-50">
-                    <div class="w-[72px] flex flex-col items-center justify-center border-r border-slate-50 shrink-0 bg-white">
-                        <span class="text-[11px] font-bold text-slate-400 leading-none mb-0.5">${item.crate.split('-')[0]}</span>
-                        <span class="text-[16px] font-mono font-medium text-slate-700 leading-none">${item.crate.split('-')[1]}</span>
+            <div class="swipe-top-layer flex items-stretch h-full bg-white border-t border-slate-50">
+                <div class="w-[72px] flex flex-col items-center justify-center border-r border-slate-50 shrink-0 bg-white">
+                    <span class="text-[11px] font-bold text-slate-400 leading-none mb-0.5">${item.crate.split('-')[0]}</span>
+                    <span class="text-[16px] font-mono font-medium text-slate-700 leading-none">${item.crate.split('-')[1]}</span>
+                </div>
+                <div class="flex-1 flex flex-col items-center justify-center p-2 text-center overflow-hidden">
+                    <div class="flex items-center justify-center gap-2 mb-1 w-full flex-wrap">
+                        <span class="text-[12px] font-bold text-slate-800 uppercase">${cleanSize}</span>
+                        <span class="text-[10px] text-slate-300">|</span>
+                        <h3 class="text-[12px] font-bold text-slate-900 truncate tracking-wide uppercase">
+                            ${displayDesign}
+                        </h3>
                     </div>
-                    <div class="flex-1 flex flex-col items-center justify-center p-2 text-center overflow-hidden">
-                        <div class="flex items-center justify-center gap-2 mb-1 w-full flex-wrap">
-                            <span class="text-[12px] font-bold text-slate-800 uppercase">${cleanSize}</span>
-                            <span class="text-[10px] text-slate-300">|</span>
-                            <h3 class="text-[12px] font-bold text-slate-900 truncate tracking-wide uppercase">
-                                ${displayDesign}
-                            </h3>
-                        </div>
-                        <p class="text-[9px] font-semibold text-slate-400 truncate w-full uppercase">
-                            ${subtext}
-                        </p>
-                    </div>
+                    <p class="text-[9px] font-semibold text-slate-400 truncate w-full uppercase">
+                        ${subtext}
+                    </p>
                 </div>
             </div>
-        `;
-        return el;
-    }
+        </div>
+    `;
+    return el;
+}
 
     function handleSearch(val) { const clearBtn = document.getElementById('clearSearch'); if(val.length > 0) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden'); runQuery(); }
     function clearSearch() { const input = document.getElementById('globalSearch'); input.value = ''; input.focus(); document.getElementById('searchSuggestions').classList.add('hidden'); isUserSorted = false; handleSearch(''); }
