@@ -40,12 +40,23 @@
     </script>
 
     <style>
-        /* FIX 3: Blue Flash Disable (Native Feel) */
+        /* FIX: Disable Blue Tap Highlight */
         * { -webkit-tap-highlight-color: transparent; }
 
-        body { background-color: #F2F2F7; -webkit-font-smoothing: antialiased; touch-action: pan-y; }
+        /* FIX: Prevent Native iOS Bounce (Better PTR experience) */
+        body { 
+            background-color: #F2F2F7; 
+            -webkit-font-smoothing: antialiased; 
+            touch-action: pan-y; 
+            overscroll-behavior-y: none; 
+        }
+
+        /* FIX: iPhone Notch Support */
+        .h-safe-top { height: env(safe-area-inset-top, 20px); }
+
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
         .glass { background: rgba(255, 255, 255, 0.90); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 0.5px solid rgba(0,0,0,0.05); }
         .glass-menu { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); }
         .glass-dark { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
@@ -252,6 +263,9 @@
         renderFilters(); 
         window.fuse = new Fuse(rawData, { keys: ['design', 'surface', 'body'], threshold: 0.35, ignoreLocation: true });
         
+        // FIX: Check internet immediately on load
+        if (!navigator.onLine) updateNetworkStatus();
+
         window.addEventListener('scroll', () => {
             const input = document.getElementById('globalSearch');
             if (document.activeElement === input) { input.blur(); }
@@ -277,7 +291,7 @@
                 suggestions.classList.add('hidden');
             }
             
-             // FIX 1: COPY BUG FIX (Added !e.target.closest check for action button)
+             // FIX: Prevent closing if clicking the action button
              if (activeSwipeEl && !e.target.closest('.swipe-top-layer') && !e.target.closest('.swipe-action-btn')) {
                 closeActiveSwipe();
             }
@@ -377,7 +391,7 @@
                 ptrContainer.style.opacity = Math.min(damped / 100, 1);
                 ptrContainer.style.transform = `translateY(${damped}px)`;
                 spinner.style.transform = `rotate(${damped * 2}deg)`;
-                if (e.cancelable) e.preventDefault();
+                // Removed preventDefault here to allow native elastic scroll feel if needed, but CSS handles overscroll
              }
         }
 
@@ -449,9 +463,12 @@
         }
     }
 
-    // FIX 1: Event Propagation Stop + Pro Formatting logic
     function copyCardData(btnElement, event) {
         if (event) event.stopPropagation();
+
+        // FIX: Prevent double-tap glitches
+        if (btnElement.classList.contains('pointer-events-none')) return;
+        btnElement.classList.add('pointer-events-none');
 
         const dataStr = btnElement.dataset.copyInfo;
         if (!dataStr) return;
@@ -469,9 +486,12 @@
                 setTimeout(() => {
                     btnElement.innerHTML = originalHtml;
                     btnElement.classList.replace('bg-green-500', 'bg-ios-blue');
+                    btnElement.classList.remove('pointer-events-none'); // Re-enable click
                 }, 400);
                 
             }, 1000); 
+        }).catch(() => {
+             btnElement.classList.remove('pointer-events-none'); // Unlock if failed
         });
     }
 
@@ -600,7 +620,7 @@
     }
 
     function resetGrid() {
-        // FIX 4: GHOST SWIPE FIX
+        // FIX: Ghost Swipe Fix
         activeSwipeEl = null; 
 
         const grid = document.getElementById('cardGrid');
@@ -689,7 +709,7 @@
 
     function handleSearch(val) { const clearBtn = document.getElementById('clearSearch'); if(val.length > 0) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden'); runQuery(); }
     
-    // FIX 5: Keyboard Glitch Fix (Removed .focus())
+    // FIX: Removed .focus() to prevent keyboard glitch
     function clearSearch() { const input = document.getElementById('globalSearch'); input.value = ''; document.getElementById('searchSuggestions').classList.add('hidden'); isUserSorted = false; handleSearch(''); }
     
     function resetFilters() { activeSize = 'All'; isUserSorted = false; filterBySize('All'); clearSearch(); document.getElementById('sizeFilterContainer').scrollLeft = 0; }
@@ -704,7 +724,7 @@
         modal.classList.remove('hidden'); 
         setTimeout(() => { 
             modal.classList.remove('opacity-0'); 
-            content.classList.remove('scale-95'); 
+            content.classList.remove('scale-100'); 
             content.classList.add('scale-100'); 
         }, 10); 
         document.body.style.overflow = 'hidden'; 
