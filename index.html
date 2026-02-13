@@ -233,20 +233,17 @@
             document.getElementById('searchSuggestions').classList.add('hidden');
         }, { passive: true });
         
-        // FIXED: Click Outside Handler for Sort Menu
         document.addEventListener('click', (e) => {
             const menu = document.getElementById('sortMenu');
-            const btn = document.getElementById('sortBtn'); // Fixed Selector
+            const btn = document.getElementById('sortBtn');
             const suggestions = document.getElementById('searchSuggestions');
             const searchGroup = document.querySelector('.group');
 
-            // Close Sort Menu
             if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
                 menu.classList.remove('dropdown-active'); 
                 menu.classList.add('dropdown-enter');
             }
 
-            // Close Search Suggestions
             if (searchGroup && suggestions && !searchGroup.contains(e.target) && !suggestions.contains(e.target)) {
                 suggestions.classList.add('hidden');
             }
@@ -440,18 +437,28 @@
         }).join('');
     }
     
+    // UPDATED: Sticky Scroll Logic (Point 2)
     function filterBySize(size) {
-        activeSize = (activeSize === size && size !== 'All') ? 'All' : size;
+        const isUnselecting = (activeSize === size && size !== 'All');
+        activeSize = isUnselecting ? 'All' : size;
+        
         const container = document.getElementById('sizeFilterContainer');
         const buttons = container.querySelectorAll('.chip');
+        
         buttons.forEach(btn => {
             const btnSize = btn.dataset.size;
-            const isSelected = btnSize === activeSize;
-            btn.className = `chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border ${isSelected ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-200' : 'bg-white text-slate-600 border-slate-200'}`;
-            if (isSelected) {
+            const isNowSelected = btnSize === activeSize;
+            
+            // Only update visual styles
+            btn.className = `chip active-scale whitespace-nowrap px-4 py-2 rounded-xl text-[12px] font-bold transition-all shadow-sm border ${isNowSelected ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-200' : 'bg-white text-slate-600 border-slate-200'}`;
+            
+            // SMART SCROLL: Only scroll if we are SELECTING a new size or clicking 'All' directly.
+            // DO NOT scroll if we are just UNSELECTING a current size.
+            if (isNowSelected && !isUnselecting) {
                 btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
             }
         });
+
         runQuery();
     }
     
@@ -543,12 +550,9 @@
         const modal = document.getElementById('imageModal'); 
         const content = document.getElementById('modalContent'); 
         const img = document.getElementById('modalImage');
-        
         img.src = src; 
         img.classList.remove('zoomed'); 
-        
         window.history.pushState({ modalOpen: true }, '', '');
-        
         modal.classList.remove('hidden'); 
         setTimeout(() => { 
             modal.classList.remove('opacity-0'); 
@@ -558,10 +562,7 @@
         document.body.style.overflow = 'hidden'; 
     }
     
-    function requestCloseModal() {
-        window.history.back();
-    }
-    
+    function requestCloseModal() { window.history.back(); }
     function performCloseAnimation() {
         const modal = document.getElementById('imageModal'); 
         const content = document.getElementById('modalContent'); 
