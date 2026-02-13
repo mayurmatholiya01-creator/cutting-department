@@ -637,12 +637,12 @@ function createCardElement(item, query) {
     let cleanSize = (item.size && item.size.includes('X')) ? `${item.size.split('X')[0]}x${item.size.split('X')[1]}` : item.size;
 
 // --- PREMIUM TILE FORMAT ---
-    const copyString = `📦 Crate No: *${item.crate}*
-📐 Size: *${cleanSize}*
-💠 Surface: *${item.surface}*
-🪨 Body: *${item.body}*
-🎨 Design Name: *${item.design}*
-✂️ Sample Size: *${item.sample}*`;
+    const copyString = `📦 *Crate No*: *${item.crate}*
+📐 *Size*: *${cleanSize}*
+💠 Surface: ${item.surface}
+🪨 Body: ${item.body}
+🎨 *Design Name*: *${item.design}*
+✂️ Sample Size: ${item.sample}`;
     // ---------------------------
 
     el.innerHTML = `
