@@ -324,17 +324,7 @@
         document.addEventListener('touchmove', handleTouchMove, {passive: false});
         document.addEventListener('touchend', handleTouchEnd, {passive: true});
 
-        const modalImg = document.getElementById('modalImage');
-        let lastTap = 0;
-        modalImg.addEventListener('click', (e) => {
-            e.stopPropagation(); 
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - lastTap;
-            if (tapLength < 300 && tapLength > 0) {
-                toggleZoom(e);
-            }
-            lastTap = currentTime;
-        });
+ 
 
         applySort('crate');
     }
