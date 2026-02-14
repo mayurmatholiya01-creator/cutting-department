@@ -8,7 +8,6 @@
     <title>Stock View</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
@@ -181,18 +180,19 @@
         </div>
     </main>
 
-<div id="imageModal" class="fixed inset-0 z-[100] hidden glass-dark flex flex-col items-center justify-center opacity-0 transition-opacity duration-300" onclick="handleModalClick(event)">
-    
-    <button class="absolute top-6 right-6 w-12 h-12 bg-white/20 backdrop-blur-md rounded-full text-white flex items-center justify-center active-scale z-50 shadow-lg border border-white/10" onclick="requestCloseModal()">
-        <i class="fa-solid fa-xmark text-xl"></i>
-    </button>
-
-    <div class="w-full h-full flex items-center justify-center overflow-hidden p-4">
-        <div id="modalContent" class="relative">
-            <img id="modalImage" src="" class="max-w-full max-h-[85vh] object-contain shadow-2xl rounded-lg">
+    <div id="imageModal" class="fixed inset-0 z-[100] hidden glass-dark flex flex-col items-center justify-center opacity-0 transition-opacity duration-300" onclick="requestCloseModal()">
+        <button class="absolute top-6 right-6 w-12 h-12 bg-white/20 backdrop-blur-md rounded-full text-white flex items-center justify-center active-scale z-50 shadow-lg border border-white/10" onclick="requestCloseModal()">
+            <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+        <div class="relative w-full h-full flex items-center justify-center overflow-hidden p-4" onclick="event.stopPropagation()">
+            <div class="relative transition-transform duration-300 scale-95" id="modalContent">
+                <img id="modalImage" src="" class="max-w-full max-h-[85vh] object-contain bg-white rounded-2xl shadow-2xl zoom-transition">
+                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm text-white/80 text-[10px] px-3 py-1 rounded-full pointer-events-none">
+                    Double tap to zoom
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
     <button onclick="window.scrollTo({top:0, behavior:'smooth'})" class="fixed bottom-6 right-6 w-12 h-12 bg-slate-900/90 backdrop-blur-md text-white rounded-full flex items-center justify-center z-40 active-scale border border-white/10 shadow-lg">
         <i class="fa-solid fa-arrow-up text-lg"></i>
@@ -224,7 +224,6 @@
     let pillOrder = []; 
     let currentSort = 'crate'; 
     let isUserSorted = false; 
-   let panzoomInstance = null;
     let displayedCount = 0;
     const BATCH_SIZE = 10;
     const TRIGGER_OFFSET = 2; 
@@ -324,7 +323,17 @@
         document.addEventListener('touchmove', handleTouchMove, {passive: false});
         document.addEventListener('touchend', handleTouchEnd, {passive: true});
 
- 
+        const modalImg = document.getElementById('modalImage');
+        let lastTap = 0;
+        modalImg.addEventListener('click', (e) => {
+            e.stopPropagation(); 
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 300 && tapLength > 0) {
+                toggleZoom(e);
+            }
+            lastTap = currentTime;
+        });
 
         applySort('crate');
     }
@@ -497,7 +506,14 @@ function handleTouchStart(e) {
         });
     }
 
-
+    function toggleZoom(e) {
+        const img = document.getElementById('modalImage');
+        if (img.classList.contains('zoomed')) {
+            img.classList.remove('zoomed');
+        } else {
+            img.classList.add('zoomed');
+        }
+    }
 
     function handleSearchInput(val) {
         isUserSorted = false; 
@@ -687,18 +703,18 @@ el.innerHTML = `
                     <div class="flex-1 flex flex-col items-center justify-center p-2 text-center overflow-hidden">
                         <div class="flex items-center justify-center gap-2 mb-1 w-full flex-wrap">
                             
-                            <span class="text-[12px] font-bold text-slate-800 uppercase tracking-[1.5px]">${cleanSize}</span>
+                            <span class="text-[12px] font-bold text-slate-800 uppercase tracking-widest">${cleanSize}</span>
                             
                             <span class="text-[10px] text-slate-300">|</span>
                             
-                          <h3 class="text-[12px] font-bold text-slate-900 truncate uppercase tracking-[1.5px]">
-    ${displayDesign}
-</h3>
+                            <h3 class="text-[12px] font-bold text-slate-900 truncate uppercase tracking-widest">
+                                ${displayDesign}
+                            </h3>
                         </div>
                         
-                       <p class="text-[9px] font-semibold text-slate-400 truncate w-full uppercase tracking-[2px]">
-    ${subtext}
-</p>
+                        <p class="text-[9px] font-semibold text-slate-400 truncate w-full uppercase tracking-widest">
+                            ${subtext}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -713,82 +729,34 @@ el.innerHTML = `
     
     function resetFilters() { activeSize = 'All'; isUserSorted = false; filterBySize('All'); clearSearch(); document.getElementById('sizeFilterContainer').scrollLeft = 0; }
     
-// --- 1. Updated Open Modal Function ---
-function openModal(src) {
-    const modal = document.getElementById('imageModal');
-    const content = document.getElementById('modalContent'); // This is the wrapper
-    const img = document.getElementById('modalImage');
-    
-    img.src = src;
-    
-    // History State (Back button support)
-    window.history.pushState({ modalOpen: true }, '', '');
-    
-    modal.classList.remove('hidden');
-    
-    // Animation Frame for smooth entry
-    requestAnimationFrame(() => {
-        modal.classList.remove('opacity-0');
-        
-        // Initialize Panzoom
-        const element = document.getElementById('modalContent');
-        
-        // Destroy old instance if exists to prevent memory leaks
-        if (panzoomInstance) {
-            panzoomInstance.dispose();
-        }
-
-        // Initialize new Panzoom instance
-panzoomInstance = Panzoom(element, {
-    maxScale: 4,       // Maximum 4x zoom
-    minScale: 1,       // 1x se chhota nahi hoga
-    startScale: 1      // Start bilkul normal size (fit) se hoga
-});
-        // Enable Mouse Wheel Zoom (Desktop fallback)
-        element.parentElement.addEventListener('wheel', panzoomInstance.zoomWithWheel);
-    });
-
-    document.body.style.overflow = 'hidden';
-}
-
-// --- 2. Handle Outside Click (Click on Background closes it) ---
-function handleModalClick(e) {
-    // Agar click Image par ya uske wrapper par hua hai, to kuch mat karo
-    // Agar click direct dark background (imageModal) par hua hai, to close karo
-    if (e.target.id === 'imageModal') {
-        requestCloseModal();
+    function openModal(src) { 
+        const modal = document.getElementById('imageModal'); 
+        const content = document.getElementById('modalContent'); 
+        const img = document.getElementById('modalImage');
+        img.src = src; 
+        img.classList.remove('zoomed'); 
+        window.history.pushState({ modalOpen: true }, '', '');
+        modal.classList.remove('hidden'); 
+        setTimeout(() => { 
+            modal.classList.remove('opacity-0'); 
+            content.classList.remove('scale-100'); 
+            content.classList.add('scale-100'); 
+        }, 10); 
+        document.body.style.overflow = 'hidden'; 
     }
-}
-
-// --- 3. Close Modal Function (Cleanup) ---
-function requestCloseModal() {
-    // Agar history state hai to back karo, warna direct close animation
-    if (history.state && history.state.modalOpen) {
-        window.history.back();
-    } else {
-        performCloseAnimation();
+    
+    function requestCloseModal() { window.history.back(); }
+    function performCloseAnimation() {
+        const modal = document.getElementById('imageModal'); 
+        const content = document.getElementById('modalContent'); 
+        modal.classList.add('opacity-0'); 
+        content.classList.remove('scale-100'); 
+        content.classList.add('scale-95'); 
+        setTimeout(() => { 
+            modal.classList.add('hidden'); 
+            document.body.style.overflow = ''; 
+        }, 300); 
     }
-}
-
-function performCloseAnimation() {
-    const modal = document.getElementById('imageModal');
-    
-    modal.classList.add('opacity-0');
-    
-    setTimeout(() => {
-        modal.classList.add('hidden');
-        document.body.style.overflow = '';
-        
-        // Cleanup Panzoom to free memory
-        if (panzoomInstance) {
-            panzoomInstance.dispose();
-            panzoomInstance = null;
-        }
-    }, 300);
-}
-
-// NOTE: Purana 'toggleZoom' function delete kar dein, ab uski zarurat nahi.
-// Panzoom library double-tap aur pinch dono handle karegi.
 
     init();
 </script>
