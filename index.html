@@ -188,7 +188,7 @@
     </button>
 
     <div class="w-full h-full flex items-center justify-center overflow-hidden p-4">
-        <div id="modalContent" class="relative transition-transform duration-300">
+        <div id="modalContent" class="relative">
             <img id="modalImage" src="" class="max-w-full max-h-[85vh] object-contain shadow-2xl rounded-lg">
         </div>
     </div>
@@ -739,13 +739,11 @@ function openModal(src) {
         }
 
         // Initialize new Panzoom instance
-        panzoomInstance = Panzoom(element, {
-            maxScale: 4,       // Max zoom level (4x)
-            minScale: 1,       // Cannot zoom out smaller than original
-            contain: 'outside', // Image stays within bounds nicely
-            startScale: 1      // Start at 100%
-        });
-
+panzoomInstance = Panzoom(element, {
+    maxScale: 4,       // Maximum 4x zoom
+    minScale: 1,       // 1x se chhota nahi hoga
+    startScale: 1      // Start bilkul normal size (fit) se hoga
+});
         // Enable Mouse Wheel Zoom (Desktop fallback)
         element.parentElement.addEventListener('wheel', panzoomInstance.zoomWithWheel);
     });
